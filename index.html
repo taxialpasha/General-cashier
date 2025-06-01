@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الكاشير المتكامل والشامل</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+      
+    </style>
+</head>
+
+<body>
+
+    <!-- أضف هذا الكود في بداية body في index.html، قبل div class="header" -->
+
+<!-- شريط العنوان المخصص -->
+<div class="custom-titlebar" id="customTitlebar">
+    <!-- منطقة السحب -->
+    <div class="titlebar-drag-region"></div>
+    
+    <!-- جانب اليسار - معلومات التطبيق -->
+    <div class="titlebar-left">
+        <div class="app-icon">🏪</div>
+        <div class="app-title">نظام الكاشير المتكامل</div>
+        <div class="app-status" id="appStatus">
+            <span class="status-indicator" id="statusIndicator"></span>
+            <span class="status-text" id="statusText">نشط</span>
+        </div>
+    </div>
+    
+    <!-- الوسط - الساعة الرقمية -->
+    <div class="titlebar-center">
+        <div class="digital-clock" id="digitalClock">
+            <div class="clock-display">
+                <div class="time-section">
+                    <span class="time-digits" id="timeDisplay">00:00:00</span>
+                    <span class="am-pm" id="amPmDisplay">ص</span>
+                </div>
+                <div class="date-section">
+                    <span class="date-text" id="dateDisplay">الأحد، 1 ديسمبر 2024</span>
+                </div>
+            </div>
+            <div class="clock-settings-btn" onclick="showClockSettings()" title="إعدادات الساعة">
+                ⚙️
+            </div>
+        </div>
+    </div>
+    
+    <!-- جانب اليمين - أزرار النافذة -->
+    <div class="titlebar-right">
+        <button class="titlebar-btn" id="minimizeBtn" onclick="minimizeWindow()" title="تصغير">
+            <svg width="12" height="12" viewBox="0 0 12 12">
+                <rect x="2" y="5" width="8" height="2" fill="currentColor"/>
+            </svg>
+        </button>
+        <button class="titlebar-btn" id="maximizeBtn" onclick="toggleMaximize()" title="تكبير/استعادة">
+            <svg width="12" height="12" viewBox="0 0 12 12" id="maximizeIcon">
+                <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none"/>
+            </svg>
+        </button>
+        <button class="titlebar-btn close-btn" onclick="closeWindow()" title="إغلاق">
+            <svg width="12" height="12" viewBox="0 0 12 12">
+                <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<!-- نافذة إعدادات الساعة -->
+<div id="clockSettingsModal" class="modal">
+    <div class="modal-content clock-settings">
+        <span class="close" onclick="closeModal('clockSettingsModal')">&times;</span>
+        <h2>⚙️ إعدادات الساعة</h2>
+        
+        <div class="clock-settings-grid">
+            <div class="setting-group">
+                <h3>🎨 الألوان</h3>
+                <div class="color-settings">
+                    <div class="color-option">
+                        <label>لون الأرقام:</label>
+                        <input type="color" id="clockTextColor" value="#ffffff" onchange="updateClockSettings()">
+                    </div>
+                    <div class="color-option">
+                        <label>لون الخلفية:</label>
+                        <input type="color" id="clockBgColor" value="#667eea" onchange="updateClockSettings()">
+                    </div>
+                    <div class="color-option">
+                        <label>لون الحدود:</label>
+                        <input type="color" id="clockBorderColor" value="#764ba2" onchange="updateClockSettings()">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="setting-group">
+                <h3>⏰ العرض</h3>
+                <div class="display-settings">
+                    <div class="setting-option">
+                        <label>
+                            <input type="radio" name="timeFormat" value="12" onchange="updateClockSettings()" checked>
+                            12 ساعة (مع ص/م)
+                        </label>
+                    </div>
+                    <div class="setting-option">
+                        <label>
+                            <input type="radio" name="timeFormat" value="24" onchange="updateClockSettings()">
+                            24 ساعة
+                        </label>
+                    </div>
+                    <div class="setting-option">
+                        <label>
+                            <input type="checkbox" id="showSeconds" onchange="updateClockSettings()" checked>
+                            عرض الثواني
+                        </label>
+                    </div>
+                    <div class="setting-option">
+                        <label>
+                            <input type="checkbox" id="showDate" onchange="updateClockSettings()" checked>
+                            عرض التاريخ
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="setting-group">
+                <h3>💫 التأثيرات</h3>
+                <div class="effect-settings">
+                    <div class="setting-option">
+                        <label>حجم الخط:</label>
+                        <input type="range" id="clockFontSize" min="12" max="24" value="16" onchange="updateClockSettings()">
+                        <span id="fontSizeValue">16px</span>
+                    </div>
+                    <div class="setting-option">
+                        <label>
+                            <input type="checkbox" id="clockGlow" onchange="updateClockSettings()">
+                            تأثير الإضاءة
+                        </label>
+                    </div>
+                    <div class="setting-option">
+                        <label>
+                            <input type="checkbox" id="clockBlink" onchange="updateClockSettings()">
+                            وميض النقطتين
+                        </label>
+                    </div>
+                    <div class="setting-option">
+                        <label>نمط الساعة:</label>
+                        <select id="clockStyle" onchange="updateClockSettings()">
+                            <option value="modern">عصري</option>
+                            <option value="classic">كلاسيكي</option>
+                            <option value="minimal">بسيط</option>
+                            <option value="neon">نيون</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="settings-actions">
+            <button class="btn btn-primary" onclick="resetClockSettings()">إعادة تعيين</button>
+            <button class="btn btn-success" onclick="saveClockSettings()">حفظ الإعدادات</button>
+        </div>
+    </div>
+</div>
+    <!-- الرأس -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">🏪 نظام الكاشير المتكامل</div>
+            
+            <!-- مختار نوع المتجر في الشريط العلوي -->
+            <div class="store-selector-header">
+                <button class="current-store-btn" onclick="toggleStoreDropdown()">
+                    <span id="currentStoreText">🏪 متجر عام</span> ▼
+                </button>
+                <div class="store-dropdown" id="storeDropdown">
+                    <div class="store-type-grid">
+                        <button class="store-type-btn active" onclick="selectStoreFromHeader('general')" data-type="general">
+                            🏪 عام
+                        </button>
+                        <button class="store-type-btn" onclick="selectStoreFromHeader('supermarket')" data-type="supermarket">
+                            🛒 سوبر ماركت
+                        </button>
+                        <button class="store-type-btn" onclick="selectStoreFromHeader('electronics')" data-type="electronics">
+                            📱 إلكترونيات
+                        </button>
+                        <button class="store-type-btn" onclick="selectStoreFromHeader('clothes')" data-type="clothes">
+                            👕 ملابس
+                        </button>
+                        <button class="store-type-btn" onclick="selectStoreFromHeader('vegetables')" data-type="vegetables">
+                            🥬 خضروات
+                        </button>
+                        <button class="store-type-btn" onclick="selectStoreFromHeader('beverages')" data-type="beverages">
+                            🥤 مشروبات
+                        </button>
+                        <button class="store-type-btn" onclick="selectStoreFromHeader('restaurant')" data-type="restaurant">
+                            🍽️ مطعم
+                        </button>
+                        <button class="store-type-btn" onclick="selectStoreFromHeader('hotel')" data-type="hotel">
+                            🏨 فندق
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-tabs">
+                <button class="tab-btn active" onclick="showTab('pos')">
+                    💰 نقطة البيع
+                    <span class="notification-badge" id="cartBadge" style="display: none;">0</span>
+                </button>
+                <button class="tab-btn" onclick="showTab('products')">
+                    📦 إدارة المنتجات
+                </button>
+                <button class="tab-btn" onclick="showTab('inventory')">
+                    📊 المخازن
+                    <span class="notification-badge" id="lowStockBadge" style="display: none;">0</span>
+                </button>
+                <button class="tab-btn" onclick="showTab('customers')">👥 العملاء</button>
+                <button class="tab-btn" onclick="showTab('installments')">
+                    💳 الأقساط
+                    <span class="notification-badge" id="overdueBadge" style="display: none;">0</span>
+                </button>
+                <button class="tab-btn" onclick="showTab('reports')">📈 التقارير</button>
+                <button class="tab-btn" onclick="showTab('settings')">⚙️ الإعدادات</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- نقطة البيع -->
+        <div id="pos" class="tab-content active">
+            <div class="pos-layout">
+                <!-- لوحة التصنيفات والبحث -->
+                <div class="categories-panel">
+                    <div class="search-container">
+                        <input type="text" class="search-input" id="productSearch" placeholder="ابحث عن المنتجات...">
+                        <button class="voice-btn" onclick="startVoiceSearch()" title="البحث الصوتي">🎤</button>
+                        <span class="search-icon">🔍</span>
+                    </div>
+
+                    <div>
+                        <h3 style="margin-bottom: 15px;">التصنيفات</h3>
+                        <div class="categories-list" id="categoriesList">
+                            <!-- سيتم تحميل التصنيفات هنا -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- لوحة المنتجات -->
+                <div class="products-panel">
+                    <div class="advanced-search">
+                        <h3>البحث المتقدم</h3>
+                        <div class="search-filters">
+                            <div class="filter-group">
+                                <label>نطاق السعر</label>
+                                <div style="display: flex; gap: 5px;">
+                                    <input type="number" class="form-input" id="priceMin" placeholder="من" style="padding: 6px;">
+                                    <input type="number" class="form-input" id="priceMax" placeholder="إلى" style="padding: 6px;">
+                                </div>
+                            </div>
+                            <div class="filter-group">
+                                <label>الترتيب</label>
+                                <select class="form-input" id="sortBy" onchange="sortProducts()">
+                                    <option value="name">الاسم</option>
+                                    <option value="price">السعر</option>
+                                    <option value="stock">الكمية</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>مخزون منخفض فقط</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="lowStockOnly" onchange="filterProducts()">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="products-grid" id="productsGrid">
+                        <!-- سيتم تحميل المنتجات هنا -->
+                    </div>
+                </div>
+
+                <!-- لوحة عربة التسوق -->
+                <div class="cart-panel">
+                    <div class="cart-header">
+                        <h3>🛒 عربة التسوق</h3>
+                        <button class="btn btn-danger" onclick="clearCart()" style="padding: 6px 12px; font-size: 11px;">مسح الكل</button>
+                    </div>
+
+                    <div class="cart-items" id="cartItems">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🛒</div>
+                            <p>العربة فارغة</p>
+                            <small>اختر منتجات من القائمة</small>
+                        </div>
+                    </div>
+
+                    <div class="cart-total">
+                        <div class="total-amount">المجموع: <span id="totalAmount">0 د.ع</span></div>
+                        <div style="font-size: 12px; opacity: 0.9;">عدد العناصر: <span id="itemCount">0</span></div>
+                    </div>
+
+                    <div class="checkout-buttons">
+                        <button class="btn btn-success" onclick="processCashSale()">💰 بيع نقدي</button>
+                        <button class="btn btn-warning" onclick="showInstallmentModal()">💳 بيع بالأقساط</button>
+                    </div>
+
+                    <button class="btn btn-info" onclick="holdSale()" style="width: 100%; margin-top: 8px;">⏸️ تعليق البيع</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- إدارة المنتجات -->
+        <div id="products" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">إضافة منتج جديد</h2>
+                    <div>
+                        <button class="btn btn-primary" onclick="generateBarcode()">🏷️ توليد باركود</button>
+                        <button class="btn btn-success" onclick="showBulkImportModal()">📥 استيراد منتجات</button>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">اسم المنتج *</label>
+                        <input type="text" class="form-input" id="productName">
+                        <button class="voice-input-btn" onclick="startVoiceInput('productName')" title="إدخال صوتي">🎤</button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الباركود</label>
+                        <input type="text" class="form-input" id="productBarcode">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">السعر *</label>
+                        <input type="number" class="form-input" id="productPrice" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">سعر التكلفة</label>
+                        <input type="number" class="form-input" id="productCost" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">التصنيف</label>
+                        <select class="form-input" id="productCategory">
+                            <option value="عام">عام</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الوحدة</label>
+                        <select class="form-input" id="productUnit">
+                            <option value="قطعة">قطعة</option>
+                            <option value="كيلو">كيلو</option>
+                            <option value="لتر">لتر</option>
+                            <option value="متر">متر</option>
+                            <option value="صندوق">صندوق</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">المخزن الثابت *</label>
+                        <input type="number" class="form-input" id="productFixedStock" placeholder="المخزن الثابت">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">المخزن المتحرك *</label>
+                        <input type="number" class="form-input" id="productMovableStock" placeholder="المخزن المتحرك">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الحد الأدنى للمخزون</label>
+                        <input type="number" class="form-input" id="productMinStock" value="10">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الوصف</label>
+                        <textarea class="form-input" id="productDescription" rows="3"></textarea>
+                        <button class="voice-input-btn" onclick="startVoiceInput('productDescription')" title="إدخال صوتي">🎤</button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-success" onclick="addProduct()">✅ إضافة المنتج</button>
+                    <button class="btn btn-danger" onclick="clearProductForm()">🗑️ مسح النموذج</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">قائمة المنتجات</h2>
+                    <div>
+                        <button class="btn btn-info" onclick="exportProducts()">📤 تصدير</button>
+                        <button class="btn btn-warning" onclick="showBarcodeGenerator()">🏷️ طباعة باركود</button>
+                    </div>
+                </div>
+
+                <div class="search-container">
+                    <input type="text" class="search-input" id="productFilter" placeholder="فلترة المنتجات...">
+                    <button class="voice-btn" onclick="startVoiceSearch('productFilter')" title="البحث الصوتي">🎤</button>
+                    <span class="search-icon">🔍</span>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>الاسم</th>
+                                <th>الباركود</th>
+                                <th>السعر</th>
+                                <th>التكلفة</th>
+                                <th>الربح</th>
+                                <th>مخزن ثابت</th>
+                                <th>مخزن متحرك</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- المخازن -->
+        <div id="inventory" class="tab-content">
+            <div class="inventory-tabs">
+                <button class="inventory-tab active" onclick="showInventoryTab('overview')">📊 نظرة عامة</button>
+                <button class="inventory-tab" onclick="showInventoryTab('movements')">📋 حركات المخزن</button>
+                <button class="inventory-tab" onclick="showInventoryTab('adjustments')">⚖️ تسوية المخزن</button>
+                <button class="inventory-tab" onclick="showInventoryTab('analysis')">📈 تحليل المخزن</button>
+            </div>
+
+            <div id="overview" class="inventory-content active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalProductsCount">0</div>
+                        <div class="stat-label">إجمالي المنتجات</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="lowStockCount">0</div>
+                        <div class="stat-label">منتجات قليلة المخزون</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalInventoryValue">0 د.ع</div>
+                        <div class="stat-label">قيمة المخزون</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="expectedProfit">0 د.ع</div>
+                        <div class="stat-label">الربح المتوقع</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">تقرير المخزون التفصيلي</h2>
+                        <button class="btn btn-primary" onclick="generateInventoryReport()">🔄 تحديث التقرير</button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>المنتج</th>
+                                    <th>مخزن ثابت</th>
+                                    <th>مخزن متحرك</th>
+                                    <th>الإجمالي</th>
+                                    <th>الحد الأدنى</th>
+                                    <th>الحالة</th>
+                                    <th>قيمة المخزون</th>
+                                    <th>الربح المتوقع</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="movements" class="inventory-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">تسجيل حركة مخزن</h2>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">المنتج</label>
+                            <select class="form-input" id="movementProduct">
+                                <option value="">اختر منتج</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">نوع الحركة</label>
+                            <select class="form-input" id="movementType">
+                                <option value="in">إدخال</option>
+                                <option value="out">إخراج</option>
+                                <option value="transfer">نقل بين المخازن</option>
+                                <option value="adjustment">تسوية</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">نوع المخزن</label>
+                            <select class="form-input" id="stockType">
+                                <option value="movable">متحرك</option>
+                                <option value="fixed">ثابت</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">الكمية</label>
+                            <input type="number" class="form-input" id="movementQuantity">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">السبب</label>
+                            <input type="text" class="form-input" id="movementReason">
+                            <button class="voice-input-btn" onclick="startVoiceInput('movementReason')" title="إدخال صوتي">🎤</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="recordMovement()">✅ تسجيل الحركة</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">سجل حركات المخزن</h2>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>المنتج</th>
+                                    <th>نوع الحركة</th>
+                                    <th>نوع المخزن</th>
+                                    <th>الكمية</th>
+                                    <th>السبب</th>
+                                </tr>
+                            </thead>
+                            <tbody id="movementsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="adjustments" class="inventory-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">تسوية المخزن</h2>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">المنتج</label>
+                            <select class="form-input" id="adjustmentProduct">
+                                <option value="">اختر منتج</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">الكمية الفعلية (متحرك)</label>
+                            <input type="number" class="form-input" id="actualMovableStock">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">الكمية الفعلية (ثابت)</label>
+                            <input type="number" class="form-input" id="actualFixedStock">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">ملاحظات</label>
+                            <textarea class="form-input" id="adjustmentNotes" rows="3"></textarea>
+                            <button class="voice-input-btn" onclick="startVoiceInput('adjustmentNotes')" title="إدخال صوتي">🎤</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-warning" onclick="adjustInventory()">⚖️ تطبيق التسوية</button>
+                </div>
+            </div>
+
+            <div id="analysis" class="inventory-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">تحليل المخزن</h2>
+                        <button class="btn btn-primary" onclick="generateInventoryAnalysis()">📊 تحليل شامل</button>
+                    </div>
+                    <div id="analysisResults">
+                        <!-- نتائج التحليل هنا -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- العملاء -->
+        <div id="customers" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCustomersCount">0</div>
+                    <div class="stat-label">إجمالي العملاء</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeCustomers">0</div>
+                    <div class="stat-label">عملاء نشطون</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCustomerDebt">0 د.ع</div>
+                    <div class="stat-label">إجمالي الديون</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="avgOrderValue">0 د.ع</div>
+                    <div class="stat-label">متوسط قيمة الطلب</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">إضافة عميل جديد</h2>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">اسم العميل *</label>
+                        <input type="text" class="form-input" id="customerName">
+                        <button class="voice-input-btn" onclick="startVoiceInput('customerName')" title="إدخال صوتي">🎤</button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">رقم الهاتف</label>
+                        <input type="text" class="form-input" id="customerPhone">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">البريد الإلكتروني</label>
+                        <input type="email" class="form-input" id="customerEmail">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">العنوان</label>
+                        <input type="text" class="form-input" id="customerAddress">
+                        <button class="voice-input-btn" onclick="startVoiceInput('customerAddress')" title="إدخال صوتي">🎤</button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">حد الائتمان</label>
+                        <input type="number" class="form-input" id="customerCreditLimit" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ملاحظات</label>
+                        <textarea class="form-input" id="customerNotes" rows="3"></textarea>
+                        <button class="voice-input-btn" onclick="startVoiceInput('customerNotes')" title="إدخال صوتي">🎤</button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-success" onclick="addCustomer()">✅ إضافة العميل</button>
+                    <button class="btn btn-danger" onclick="clearCustomerForm()">🗑️ مسح النموذج</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">قائمة العملاء</h2>
+                    <button class="btn btn-info" onclick="exportCustomers()">📤 تصدير</button>
+                </div>
+
+                <div class="search-container">
+                    <input type="text" class="search-input" id="customerFilter" placeholder="البحث في العملاء...">
+                    <button class="voice-btn" onclick="startVoiceSearch('customerFilter')" title="البحث الصوتي">🎤</button>
+                    <span class="search-icon">🔍</span>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>الاسم</th>
+                                <th>الهاتف</th>
+                                <th>البريد الإلكتروني</th>
+                                <th>إجمالي المشتريات</th>
+                                <th>الرصيد المستحق</th>
+                                <th>آخر شراء</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- الأقساط -->
+        <div id="installments" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalInstallmentSales">0</div>
+                    <div class="stat-label">مبيعات بالأقساط</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalInstallmentAmount">0 د.ع</div>
+                    <div class="stat-label">إجمالي قيمة الأقساط</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="paidInstallments">0 د.ع</div>
+                    <div class="stat-label">الأقساط المدفوعة</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pendingInstallments">0 د.ع</div>
+                    <div class="stat-label">الأقساط المعلقة</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">إدارة الأقساط</h2>
+                    <div>
+                        <button class="btn btn-warning" onclick="showOverdueInstallments()">⚠️ أقساط متأخرة</button>
+                        <button class="btn btn-info" onclick="generateInstallmentReport()">📊 تقرير شامل</button>
+                    </div>
+                </div>
+
+                <div class="search-container">
+                    <input type="text" class="search-input" id="installmentFilter" placeholder="البحث في الأقساط...">
+                    <button class="voice-btn" onclick="startVoiceSearch('installmentFilter')" title="البحث الصوتي">🎤</button>
+                    <span class="search-icon">🔍</span>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>العميل</th>
+                                <th>المبلغ الأصلي</th>
+                                <th>المبلغ مع الفوائد</th>
+                                <th>المدفوع</th>
+                                <th>المتبقي</th>
+                                <th>القسط الشهري</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="installmentsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- التقارير -->
+        <div id="reports" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="todaySales">0 د.ع</div>
+                    <div class="stat-label">مبيعات اليوم</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="monthSales">0 د.ع</div>
+                    <div class="stat-label">مبيعات الشهر</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalProfit">0 د.ع</div>
+                    <div class="stat-label">إجمالي الأرباح</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="avgDailySales">0 د.ع</div>
+                    <div class="stat-label">متوسط المبيعات اليومية</div>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="card">
+                    <h3>تقارير المبيعات</h3>
+                    <div class="form-group">
+                        <label class="form-label">من تاريخ</label>
+                        <input type="date" class="form-input" id="salesReportFrom">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">إلى تاريخ</label>
+                        <input type="date" class="form-input" id="salesReportTo">
+                    </div>
+                    <button class="btn btn-primary" onclick="generateSalesReport()">📊 إنشاء التقرير</button>
+                    <button class="btn btn-success" onclick="exportSalesReport()">📤 تصدير</button>
+                </div>
+
+                <div class="card">
+                    <h3>تصدير البيانات</h3>
+                    <div style="display: grid; gap: 10px;">
+                        <button class="btn btn-info" onclick="exportAllProducts()">📦 تصدير المنتجات</button>
+                        <button class="btn btn-info" onclick="exportAllSales()">💰 تصدير المبيعات</button>
+                        <button class="btn btn-info" onclick="exportAllCustomers()">👥 تصدير العملاء</button>
+                        <button class="btn btn-warning" onclick="exportFullBackup()">💾 نسخة احتياطية كاملة</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>استيراد البيانات</h3>
+                    <div class="form-group">
+                        <label class="form-label">اختر ملف JSON</label>
+                        <input type="file" class="form-input" id="importFile" accept=".json">
+                    </div>
+                    <button class="btn btn-warning" onclick="importFromFile()">📥 استيراد</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">أفضل المنتجات مبيعاً</h2>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>المنتج</th>
+                                <th>عدد المبيعات</th>
+                                <th>إجمالي الكمية</th>
+                                <th>إجمالي القيمة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topProductsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- الإعدادات -->
+        <div id="settings" class="tab-content">
+            <div class="form-grid">
+                <div class="card">
+                    <h3>إعدادات عامة</h3>
+                    <div class="form-group">
+                        <label class="form-label">اسم المتجر</label>
+                        <input type="text" class="form-input" id="storeName" value="متجري">
+                        <button class="voice-input-btn" onclick="startVoiceInput('storeName')" title="إدخال صوتي">🎤</button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">العملة</label>
+                        <select class="form-input" id="currency">
+                            <option value="IQD">دينار عراقي (د.ع)</option>
+                            <option value="USD">دولار أمريكي ($)</option>
+                            <option value="EUR">يورو (€)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الضريبة (%)</label>
+                        <input type="number" class="form-input" id="taxRate" value="0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">تفعيل التنبيهات الصوتية</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="audioAlerts" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>إعدادات الأقساط</h3>
+                    <div class="form-group">
+                        <label class="form-label">نسبة الفائدة الافتراضية (%)</label>
+                        <input type="number" class="form-input" id="defaultInterestRate" value="4">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">عدد الأقساط الافتراضي</label>
+                        <input type="number" class="form-input" id="defaultInstallmentCount" value="12">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الحد الأدنى للبيع بالأقساط</label>
+                        <input type="number" class="form-input" id="minInstallmentAmount" value="100000">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">طباعة فاتورة الدفع تلقائياً</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoPrintPayment" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>إعدادات المخزون</h3>
+                    <div class="form-group">
+                        <label class="form-label">حد المخزون المنخفض</label>
+                        <input type="number" class="form-input" id="lowStockThreshold" value="10">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">تنبيه المخزون المنخفض</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="lowStockAlert" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">إدارة المخزون التلقائية</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoInventoryManagement">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>إعدادات الطباعة</h3>
+                    <div class="form-group">
+                        <label class="form-label">طباعة الفاتورة تلقائياً</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoPrintReceipt">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">حجم الورق</label>
+                        <select class="form-input" id="paperSize">
+                            <option value="80mm">80 مم (طابعة حرارية)</option>
+                            <option value="A4">A4</option>
+                            <option value="A5">A5</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>النسخ الاحتياطي</h3>
+                    <div style="margin-bottom: 15px;">
+                        <button class="btn btn-warning" onclick="createBackup()">💾 إنشاء نسخة احتياطية</button>
+                        <button class="btn btn-info" onclick="scheduleBackup()">⏰ جدولة النسخ الاحتياطي</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">استعادة من نسخة احتياطية</label>
+                        <input type="file" class="form-input" id="backupFile" accept=".json">
+                    </div>
+
+                    <button class="btn btn-success" onclick="restoreBackup()">🔄 استعادة البيانات</button>
+                    <button class="btn btn-danger" onclick="resetAllData()" style="margin-top: 10px;">🗑️ مسح جميع البيانات</button>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn btn-success" onclick="saveAllSettings()">✅ حفظ جميع الإعدادات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة الأقساط -->
+    <div id="installmentModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('installmentModal')">&times;</span>
+            <h2>🛒 بيع بالأقساط</h2>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">العميل</label>
+                    <select class="form-input" id="installmentCustomer">
+                        <option value="">اختر عميل موجود</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">أو اسم عميل جديد</label>
+                    <input type="text" class="form-input" id="newCustomerName">
+                    <button class="voice-input-btn" onclick="startVoiceInput('newCustomerName')" title="إدخال صوتي">🎤</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">رقم الهاتف</label>
+                    <input type="text" class="form-input" id="installmentPhone">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">المبلغ الأصلي</label>
+                    <input type="number" class="form-input" id="originalAmount" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">نسبة الفائدة (%)</label>
+                    <input type="number" class="form-input" id="interestRate" value="4" oninput="calculateInstallment()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">عدد الأقساط</label>
+                    <input type="number" class="form-input" id="installmentCount" value="12" oninput="calculateInstallment()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">المبلغ مع الفائدة</label>
+                    <input type="number" class="form-input" id="totalWithInterest" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">قيمة القسط الشهري</label>
+                    <input type="number" class="form-input" id="monthlyPayment" readonly>
+                </div>
+            </div>
+
+            <div id="installmentSchedule"></div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-success" onclick="createInstallmentSale()">✅ إتمام البيع بالأقساط</button>
+                <button class="btn btn-danger" onclick="closeModal('installmentModal')">❌ إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة دفع الأقساط -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('paymentModal')">&times;</span>
+            <h2>💰 تسديد قسط</h2>
+            
+            <div id="paymentDetails"></div>
+            
+            <div class="form-group">
+                <label class="form-label">المبلغ المدفوع</label>
+                <input type="number" class="form-input" id="paymentAmount" step="0.01">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">ملاحظات</label>
+                <textarea class="form-input" id="paymentNotes" rows="3"></textarea>
+                <button class="voice-input-btn" onclick="startVoiceInput('paymentNotes')" title="إدخال صوتي">🎤</button>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-success" onclick="processPayment()">✅ تأكيد الدفع</button>
+                <button class="btn btn-danger" onclick="closeModal('paymentModal')">❌ إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة طباعة الباركود -->
+    <div id="barcodeModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('barcodeModal')">&times;</span>
+            <h2>🏷️ طباعة باركود</h2>
+            
+            <div class="form-group">
+                <label class="form-label">اختر المنتجات</label>
+                <select class="form-input" id="barcodeProducts" multiple>
+                    <!-- سيتم تحميل المنتجات هنا -->
+                </select>
+            </div>
+            
+            <div id="barcodePreview"></div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="generateBarcodePreview()">👁️ معاينة</button>
+                <button class="btn btn-success" onclick="printBarcodes()">🖨️ طباعة</button>
+                <button class="btn btn-danger" onclick="closeModal('barcodeModal')">❌ إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- زر الإجراءات السريعة -->
+    <div class="floating-action" onclick="toggleQuickActions()" id="quickActionBtn">⚡</div>
+<!-- أضف هذا الكود قبل إغلاق </body> في index.html -->
+
+<!-- نافذة استيراد المنتجات بالكمية -->
+<div id="bulkImportModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('bulkImportModal')">&times;</span>
+        <h2>📥 استيراد منتجات بالكمية</h2>
+        
+        <div class="import-steps">
+            <div class="step-card">
+                <h3>📂 الخطوة 1: اختيار الملف</h3>
+                <div class="form-group">
+                    <label class="form-label">ملف JSON للمنتجات</label>
+                    <input type="file" class="form-input" id="bulkImportFile" accept=".json">
+                    <small style="color: #666; font-size: 12px;">
+                        ملف JSON يحتوي على مصفوفة من المنتجات
+                    </small>
+                </div>
+            </div>
+
+            <div class="step-card">
+                <h3>🏪 الخطوة 2: اختيار فئة المتجر</h3>
+                <div class="store-category-selection">
+                    <select class="form-input" id="targetStoreType">
+                        <option value="general">🏪 متجر عام</option>
+                        <option value="supermarket">🛒 سوبر ماركت</option>
+                        <option value="electronics">📱 إلكترونيات</option>
+                        <option value="clothes">👕 ملابس</option>
+                        <option value="vegetables">🥬 خضروات</option>
+                        <option value="beverages">🥤 مشروبات</option>
+                        <option value="restaurant">🍽️ مطعم</option>
+                        <option value="hotel">🏨 فندق</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="step-card">
+                <h3>⚙️ الخطوة 3: خيارات الاستيراد</h3>
+                <div class="import-options">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="replaceExisting" checked>
+                        <span class="checkmark"></span>
+                        استبدال المنتجات الموجودة (نفس الاسم/الباركود)
+                    </label>
+                    
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="autoGenerateBarcode">
+                        <span class="checkmark"></span>
+                        إنشاء باركود تلقائي للمنتجات بدون باركود
+                    </label>
+                    
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="validateCategories" checked>
+                        <span class="checkmark"></span>
+                        التحقق من التصنيفات وتصحيحها تلقائياً
+                    </label>
+                </div>
+            </div>
+
+            <div class="step-card">
+                <h3>👁️ الخطوة 4: معاينة البيانات</h3>
+                <div id="importPreview" class="import-preview">
+                    <p style="text-align: center; color: #666;">
+                        اختر ملف لعرض المعاينة
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="previewImportData()">👁️ معاينة البيانات</button>
+            <button class="btn btn-success" onclick="processBulkImport()" id="importBtn" disabled>✅ استيراد المنتجات</button>
+            <button class="btn btn-info" onclick="downloadSampleFile()">📄 تحميل ملف تجريبي</button>
+            <button class="btn btn-danger" onclick="closeModal('bulkImportModal')">❌ إلغاء</button>
+        </div>
+    </div>
+</div>
+    <script>
+
+
+    </script>
+    <script src="app.js"></script>
+    <!-- أضف هذا السطر في HTML بعد الكود الرئيسي -->
+<script src="import-export.js"></script>
+</body>
+
+</html>
