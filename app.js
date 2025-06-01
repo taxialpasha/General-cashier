@@ -1,664 +1,119 @@
-// نظام الكاشير المتكامل والشامل - الإصدار المحسن
-// مع دعم كامل لشريط العنوان المخصص والتحكم في النافذة
-
-'use strict';
-
-// ========================================
-// 🚀 متغيرات النظام الأساسية
-// ========================================
-
-// البيانات الأساسية
-let products = JSON.parse(localStorage.getItem('products')) || [];
-let sales = JSON.parse(localStorage.getItem('sales')) || [];
-let customers = JSON.parse(localStorage.getItem('customers')) || [];
-let installmentSales = JSON.parse(localStorage.getItem('installmentSales')) || [];
-let inventoryMovements = JSON.parse(localStorage.getItem('inventoryMovements')) || [];
+// نظام الكاشير المتكامل والشامل - app.js
+// إعداد البيانات الأساسية
+let products = JSON.parse(localStorage.getItem('products') || '[]');
+let customers = JSON.parse(localStorage.getItem('customers') || '[]');
+let sales = JSON.parse(localStorage.getItem('sales') || '[]');
+let installmentSales = JSON.parse(localStorage.getItem('installmentSales') || '[]');
+let movements = JSON.parse(localStorage.getItem('movements') || '[]');
+let settings = JSON.parse(localStorage.getItem('settings') || '{}');
 let cart = [];
-let currentStoreType = localStorage.getItem('currentStoreType') || 'general';
 let selectedCategory = 'all';
-let currentPaymentId = null;
+let currentStoreType = 'general';
 
-// متغيرات شريط العنوان والساعة
-let clockInterval;
-let appStatusInterval;
-let windowControlsInitialized = false;
-let isElectronApp = false;
-
-// إعدادات الساعة الرقمية
-let clockSettings = {
-    textColor: '#ffffff',
-    bgColor: 'rgba(255, 255, 255, 0.1)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    format: '12', // 12 أو 24
-    showSeconds: true,
-    showDate: true,
-    fontSize: 16,
-    glow: false,
-    blink: false,
-    style: 'modern'
+// إعدادات افتراضية
+const defaultSettings = {
+    storeName: 'متجري',
+    currency: 'IQD',
+    taxRate: 0,
+    audioAlerts: true,
+    defaultInterestRate: 4,
+    defaultInstallmentCount: 12,
+    minInstallmentAmount: 100000,
+    autoPrintPayment: true,
+    lowStockThreshold: 10,
+    lowStockAlert: true,
+    autoInventoryManagement: false,
+    autoPrintReceipt: false,
+    paperSize: '80mm'
 };
 
-// متغيرات حالة التطبيق
-let appStatus = 'active';
-let lastPingTime = Date.now();
-let systemDiagnostics = {
-    windowControlsWorking: false,
-    electronApiAvailable: false,
-    customTitlebarVisible: false,
-    lastTestTime: null
-};
+// دمج الإعدادات الافتراضية
+settings = { ...defaultSettings, ...settings };
 
-// ========================================
-// 🏪 تصنيفات المتاجر والمنتجات
-// ========================================
-
+// تصنيفات حسب نوع المتجر
 const storeCategories = {
-    general: ['عام', 'متنوع', 'أدوات مكتبية', 'إكسسوارات'],
-    supermarket: ['طعام', 'مشروبات', 'منظفات', 'منتجات شخصية', 'مجمدات'],
-    electronics: ['هواتف', 'حاسوب', 'أجهزة منزلية', 'إكسسوارات إلكترونية', 'ألعاب'],
-    clothes: ['رجالي', 'نسائي', 'أطفال', 'أحذية', 'حقائب'],
-    vegetables: ['خضروات ورقية', 'خضروات جذرية', 'فواكه', 'بقوليات', 'أعشاب'],
-    beverages: ['مشروبات غازية', 'عصائر', 'مياه', 'مشروبات ساخنة', 'مشروبات طاقة'],
-    restaurant: ['مقبلات', 'أطباق رئيسية', 'حلويات', 'مشروبات', 'سلطات'],
-    hotel: ['إقامة', 'خدمات إضافية', 'مطعم', 'غسيل', 'ترفيه']
+    general: ['عام', 'أطعمة', 'مشروبات', 'تنظيف', 'شخصي', 'أدوات'],
+    supermarket: ['خضروات', 'فواكه', 'لحوم', 'أسماك', 'ألبان', 'حبوب', 'معلبات', 'مجمدات', 'مخبوزات', 'تنظيف', 'شخصي'],
+    electronics: ['هواتف', 'حاسوب', 'تلفزيون', 'صوتيات', 'إكسسوارات', 'ألعاب', 'أجهزة منزلية'],
+    clothes: ['رجالي', 'نسائي', 'أطفال', 'رياضي', 'أحذية', 'حقائب', 'إكسسوارات'],
+    vegetables: ['خضروات ورقية', 'جذريات', 'فواكه', 'أعشاب', 'بذور', 'مكسرات'],
+    beverages: ['عصائر', 'مشروبات غازية', 'مياه', 'قهوة', 'شاي', 'مشروبات ساخنة', 'مشروبات طاقة'],
+    restaurant: ['مقبلات', 'شوربات', 'أطباق رئيسية', 'حلويات', 'مشروبات', 'سلطات'],
+    hotel: ['غرف', 'مطعم', 'خدمات إضافية', 'مؤتمرات', 'ترفيه']
 };
 
-const storeNames = {
-    general: '🏪 متجر عام',
-    supermarket: '🛒 سوبر ماركت',
-    electronics: '📱 إلكترونيات',
-    clothes: '👕 ملابس',
-    vegetables: '🥬 خضروات',
-    beverages: '🥤 مشروبات',
-    restaurant: '🍽️ مطعم',
-    hotel: '🏨 فندق'
+// منتجات تجريبية حسب نوع المتجر
+const sampleProducts = {
+    general: [
+        { name: 'كولا', barcode: '123456789', price: 2500, cost: 2000, category: 'مشروبات', unit: 'قطعة', fixedStock: 100, movableStock: 50, minStock: 10 },
+        { name: 'شامبو', barcode: '123456790', price: 15000, cost: 12000, category: 'شخصي', unit: 'قطعة', fixedStock: 50, movableStock: 25, minStock: 5 },
+        { name: 'أرز بسمتي', barcode: '123456791', price: 12000, cost: 10000, category: 'أطعمة', unit: 'كيلو', fixedStock: 200, movableStock: 100, minStock: 20 }
+    ],
+    supermarket: [
+        { name: 'طماطم', barcode: '200000001', price: 3000, cost: 2500, category: 'خضروات', unit: 'كيلو', fixedStock: 100, movableStock: 80, minStock: 10 },
+        { name: 'تفاح أحمر', barcode: '200000002', price: 4500, cost: 3500, category: 'فواكه', unit: 'كيلو', fixedStock: 150, movableStock: 100, minStock: 15 },
+        { name: 'لحم غنم', barcode: '200000003', price: 25000, cost: 20000, category: 'لحوم', unit: 'كيلو', fixedStock: 50, movableStock: 30, minStock: 5 }
+    ],
+    electronics: [
+        { name: 'آيفون 15', barcode: '300000001', price: 1500000, cost: 1200000, category: 'هواتف', unit: 'قطعة', fixedStock: 20, movableStock: 15, minStock: 2 },
+        { name: 'لابتوب ديل', barcode: '300000002', price: 800000, cost: 650000, category: 'حاسوب', unit: 'قطعة', fixedStock: 10, movableStock: 8, minStock: 1 },
+        { name: 'سماعات بلوتوث', barcode: '300000003', price: 50000, cost: 35000, category: 'إكسسوارات', unit: 'قطعة', fixedStock: 50, movableStock: 30, minStock: 5 }
+    ]
 };
 
-// ========================================
-// 🪟 نظام شريط العنوان المخصص والتحكم في النافذة
-// ========================================
+// رموز المتاجر
+const storeTypeIcons = {
+    general: '🏪',
+    supermarket: '🛒',
+    electronics: '📱',
+    clothes: '👕',
+    vegetables: '🥬',
+    beverages: '🥤',
+    restaurant: '🍽️',
+    hotel: '🏨'
+};
 
-/**
- * تهيئة شريط العنوان المخصص والتحكم في النافذة
- */
-function initializeCustomTitlebar() {
-    console.log('🚀 بدء تهيئة شريط العنوان المخصص...');
-    
-    try {
-        // التحقق من بيئة Electron
-        isElectronApp = typeof window.electronAPI !== 'undefined';
-        systemDiagnostics.electronApiAvailable = isElectronApp;
-        
-        console.log('🔍 فحص النظام:', {
-            isElectron: isElectronApp,
-            userAgent: navigator.userAgent,
-            platform: navigator.platform
-        });
-        
-        // التحقق من وجود عناصر شريط العنوان
-        const titlebarElements = checkTitlebarElements();
-        if (!titlebarElements.allPresent) {
-            console.error('❌ عناصر شريط العنوان مفقودة:', titlebarElements.missing);
-            return false;
-        }
-        
-        systemDiagnostics.customTitlebarVisible = true;
-        console.log('✅ عناصر شريط العنوان موجودة');
-        
-        // إعداد التحكم في النافذة
-        setupWindowControls();
-        
-        // إعداد الساعة الرقمية
-        setupDigitalClock();
-        
-        // إعداد مراقبة حالة التطبيق
-        setupAppStatusMonitoring();
-        
-        // إعداد الأحداث
-        setupTitlebarEvents();
-        
-        // تطبيق إعدادات الساعة
-        applyClock Settings();
-        
-        // اختبار الوظائف
-        setTimeout(() => {
-            testWindowControls();
-        }, 1000);
-        
-        windowControlsInitialized = true;
-        console.log('🎉 تم تهيئة شريط العنوان بنجاح!');
-        
-        return true;
-        
-    } catch (error) {
-        console.error('❌ خطأ في تهيئة شريط العنوان:', error);
-        showNotification('❌ خطأ في تهيئة شريط العنوان: ' + error.message, 'error');
-        return false;
-    }
-}
+// التهيئة عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    initializeApp();
+});
 
-/**
- * التحقق من وجود عناصر شريط العنوان المطلوبة
- */
-function checkTitlebarElements() {
-    const requiredElements = [
-        'customTitlebar',
-        'timeDisplay',
-        'dateDisplay', 
-        'statusIndicator',
-        'statusText',
-        'minimizeBtn',
-        'maximizeBtn',
-        'maximizeIcon'
-    ];
-    
-    const missing = [];
-    
-    requiredElements.forEach(id => {
-        const element = document.getElementById(id);
-        if (!element) {
-            missing.push(id);
-        }
-    });
-    
-    return {
-        allPresent: missing.length === 0,
-        missing: missing,
-        total: requiredElements.length,
-        found: requiredElements.length - missing.length
-    };
-}
-
-/**
- * إعداد التحكم في النافذة مع دوال محسنة
- */
-function setupWindowControls() {
-    console.log('🔧 إعداد التحكم في النافذة...');
-    
-    // تنظيف الدوال القديمة
-    window.minimizeWindow = null;
-    window.toggleMaximize = null;
-    window.closeWindow = null;
-    
-    if (isElectronApp) {
-        setupElectronWindowControls();
-    } else {
-        setupBrowserWindowControls();
+function initializeApp() {
+    // تهيئة المنتجات التجريبية إذا كانت فارغة
+    if (products.length === 0) {
+        loadSampleProducts();
     }
     
-    // إعداد مستمعات الأحداث للأزرار
-    setupButtonEventListeners();
+    // تحديث الواجهة
+    updateCategoriesList();
+    updateProductsGrid();
+    updateCartDisplay();
+    updateCustomersTable();
+    updateInstallmentsTable();
+    updateInventoryReport();
+    updateStats();
+    loadSettings();
     
-    // تحديث أيقونة التكبير
-    updateMaximizeButton();
+    // بدء الساعة الرقمية
+    startClock();
     
-    console.log('✅ تم إعداد التحكم في النافذة');
+    // تهيئة البحث
+    setupSearch();
+    
+    // تحديث التنبيهات
+    updateNotificationBadges();
+    
+    showNotification('تم تحميل النظام بنجاح!', 'success');
 }
 
-/**
- * إعداد دوال التحكم في النافذة للـ Electron
- */
-function setupElectronWindowControls() {
-    console.log('⚙️ إعداد دوال Electron...');
-    
-    // دالة التصغير المحسنة
-    window.minimizeWindow = async function() {
-        console.log('🔽 محاولة تصغير النافذة (Electron)...');
-        
-        try {
-            if (!window.electronAPI || !window.electronAPI.windowMinimize) {
-                throw new Error('electronAPI.windowMinimize غير متوفر');
-            }
-            
-            const result = await window.electronAPI.windowMinimize();
-            
-            if (result && result.success) {
-                console.log('✅ تم تصغير النافذة بنجاح');
-                updateAppStatus('minimized');
-                showNotification('🔽 تم تصغير النافذة', 'success');
-                return true;
-            } else {
-                throw new Error(result?.error || 'فشل غير معروف');
-            }
-            
-        } catch (error) {
-            console.error('❌ فشل في تصغير النافذة:', error);
-            showNotification('❌ فشل في تصغير النافذة: ' + error.message, 'error');
-            
-            // محاولة بديلة
-            try {
-                if (window.electronAPI && window.electronAPI.send) {
-                    window.electronAPI.send('window-minimize-fallback');
-                }
-            } catch (fallbackError) {
-                console.error('❌ فشل في الطريقة البديلة:', fallbackError);
-            }
-            
-            return false;
-        }
-    };
-    
-    // دالة التكبير/الاستعادة المحسنة
-    window.toggleMaximize = async function() {
-        console.log('🔄 محاولة تبديل حالة النافذة (Electron)...');
-        
-        try {
-            if (!window.electronAPI || !window.electronAPI.windowMaximize) {
-                throw new Error('electronAPI.windowMaximize غير متوفر');
-            }
-            
-            const result = await window.electronAPI.windowMaximize();
-            
-            if (result && result.success) {
-                const newState = result.isMaximized ? 'مكبرة' : 'عادية';
-                console.log(`✅ تم تغيير حالة النافذة إلى: ${newState}`);
-                
-                updateMaximizeButton(result.isMaximized);
-                updateAppStatus(result.isMaximized ? 'maximized' : 'normal');
-                showNotification(`🔄 النافذة ${newState}`, 'success');
-                
-                return true;
-            } else {
-                throw new Error(result?.error || 'فشل غير معروف');
-            }
-            
-        } catch (error) {
-            console.error('❌ فشل في تبديل حالة النافذة:', error);
-            showNotification('❌ فشل في تكبير النافذة: ' + error.message, 'error');
-            
-            // محاولة بديلة للتكبير
-            try {
-                if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                    showNotification('🔄 خروج من ملء الشاشة', 'info');
-                } else {
-                    document.documentElement.requestFullscreen();
-                    showNotification('🔄 ملء الشاشة', 'info');
-                }
-            } catch (fallbackError) {
-                console.error('❌ فشل في الطريقة البديلة:', fallbackError);
-            }
-            
-            return false;
-        }
-    };
-    
-    // دالة الإغلاق المحسنة
-    window.closeWindow = async function() {
-        console.log('❌ محاولة إغلاق النافذة (Electron)...');
-        
-        try {
-            // حفظ البيانات قبل الإغلاق
-            await saveDataBeforeClose();
-            
-            if (!window.electronAPI || !window.electronAPI.windowClose) {
-                throw new Error('electronAPI.windowClose غير متوفر');
-            }
-            
-            const result = await window.electronAPI.windowClose();
-            
-            if (result && result.success) {
-                console.log('✅ تم إغلاق النافذة بنجاح');
-                return true;
-            } else {
-                throw new Error(result?.error || 'فشل غير معروف');
-            }
-            
-        } catch (error) {
-            console.error('❌ فشل في إغلاق النافذة:', error);
-            
-            // محاولة بديلة
-            try {
-                window.close();
-                return true;
-            } catch (fallbackError) {
-                console.error('❌ فشل في الإغلاق البديل:', fallbackError);
-                showNotification('❌ فشل في إغلاق النافذة: ' + error.message, 'error');
-                return false;
-            }
-        }
-    };
-    
-    console.log('✅ تم إعداد دوال Electron بنجاح');
-}
-
-/**
- * إعداد دوال التحكم في النافذة للمتصفح العادي
- */
-function setupBrowserWindowControls() {
-    console.log('🌐 إعداد دوال المتصفح...');
-    
-    // دالة التصغير للمتصفح
-    window.minimizeWindow = function() {
-        console.log('🔽 تصغير النافذة (متصفح)');
-        showNotification('🔽 تصغير النافذة غير متاح في المتصفح', 'warning');
-        return false;
-    };
-    
-    // دالة التكبير للمتصفح
-    window.toggleMaximize = function() {
-        console.log('🔄 تبديل حالة النافذة (متصفح)');
-        
-        try {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-                showNotification('🔄 خروج من ملء الشاشة', 'success');
-                updateMaximizeButton(false);
-            } else {
-                document.documentElement.requestFullscreen();
-                showNotification('🔄 ملء الشاشة', 'success');
-                updateMaximizeButton(true);
-            }
-            return true;
-        } catch (error) {
-            console.error('❌ فشل في تبديل حالة الشاشة:', error);
-            showNotification('❌ فشل في تبديل حالة الشاشة', 'error');
-            return false;
-        }
-    };
-    
-    // دالة الإغلاق للمتصفح
-    window.closeWindow = function() {
-        console.log('❌ إغلاق النافذة (متصفح)');
-        
-        if (confirm('هل تريد إغلاق التطبيق؟\n\nملاحظة: سيتم حفظ البيانات تلقائياً.')) {
-            try {
-                saveDataBeforeClose();
-                window.close();
-                return true;
-            } catch (error) {
-                console.error('❌ فشل في الإغلاق:', error);
-                showNotification('❌ فشل في إغلاق النافذة', 'error');
-                return false;
-            }
-        }
-        return false;
-    };
-    
-    console.log('✅ تم إعداد دوال المتصفح بنجاح');
-}
-
-/**
- * إعداد مستمعات الأحداث للأزرار
- */
-function setupButtonEventListeners() {
-    console.log('🎯 إعداد مستمعات أحداث الأزرار...');
-    
-    const buttons = [
-        { id: 'minimizeBtn', action: 'minimizeWindow', name: 'التصغير' },
-        { id: 'maximizeBtn', action: 'toggleMaximize', name: 'التكبير' },
-        { id: 'closeBtn', action: 'closeWindow', name: 'الإغلاق' }
-    ];
-    
-    buttons.forEach(({ id, action, name }) => {
-        const button = document.getElementById(id);
-        if (button) {
-            // إزالة المستمعات القديمة
-            button.onclick = null;
-            button.removeAttribute('onclick');
-            
-            // إضافة مستمع جديد محسن
-            button.addEventListener('click', async function(event) {
-                event.preventDefault();
-                event.stopPropagation();
-                
-                console.log(`👆 نقر على زر ${name}`);
-                
-                // تأثير بصري
-                this.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    this.style.transform = 'scale(1)';
-                }, 100);
-                
-                // تنفيذ الإجراء
-                if (typeof window[action] === 'function') {
-                    const success = await window[action]();
-                    console.log(`${success ? '✅' : '❌'} نتيجة ${name}: ${success ? 'نجح' : 'فشل'}`);
-                } else {
-                    console.error(`❌ الدالة ${action} غير موجودة`);
-                    showNotification(`❌ خطأ: ${name} غير متاح`, 'error');
-                }
-            });
-            
-            // إضافة تأثيرات بصرية محسنة
-            button.addEventListener('mouseenter', function() {
-                this.style.transform = 'scale(1.1)';
-                this.style.opacity = '0.8';
-            });
-            
-            button.addEventListener('mouseleave', function() {
-                this.style.transform = 'scale(1)';
-                this.style.opacity = '1';
-            });
-            
-            console.log(`✅ تم إعداد مستمع ${name}`);
-        } else {
-            console.warn(`⚠️ الزر ${id} غير موجود`);
-        }
-    });
-    
-    // النقر المزدوج على شريط العنوان للتكبير
-    const titlebar = document.getElementById('customTitlebar');
-    if (titlebar) {
-        titlebar.addEventListener('dblclick', function(event) {
-            // تجاهل النقر على الأزرار أو الساعة
-            if (!event.target.closest('.titlebar-btn') && 
-                !event.target.closest('.digital-clock')) {
-                console.log('👆 نقر مزدوج على شريط العنوان');
-                if (typeof window.toggleMaximize === 'function') {
-                    window.toggleMaximize();
-                }
-            }
-        });
-        console.log('✅ تم إعداد النقر المزدوج على شريط العنوان');
-    }
-    
-    console.log('✅ تم إعداد جميع مستمعات الأحداث');
-}
-
-/**
- * تحديث أيقونة زر التكبير
- */
-async function updateMaximizeButton(isMaximized = null) {
-    const maximizeIcon = document.getElementById('maximizeIcon');
-    const maximizeBtn = document.getElementById('maximizeBtn');
-    
-    if (!maximizeIcon) {
-        console.warn('⚠️ عنصر maximizeIcon غير موجود');
-        return;
-    }
-    
-    try {
-        // الحصول على حالة النافذة إذا لم يتم تمريرها
-        if (isMaximized === null && isElectronApp && window.electronAPI && window.electronAPI.windowIsMaximized) {
-            try {
-                isMaximized = await window.electronAPI.windowIsMaximized();
-            } catch (error) {
-                console.warn('⚠️ فشل في الحصول على حالة النافذة:', error);
-                isMaximized = false;
-            }
-        }
-        
-        // في حالة المتصفح، فحص حالة ملء الشاشة
-        if (!isElectronApp) {
-            isMaximized = !!document.fullscreenElement;
-        }
-        
-        // تحديث الأيقونة
-        if (isMaximized) {
-            // أيقونة الاستعادة (نافذتان متداخلتان)
-            maximizeIcon.innerHTML = `
-                <rect x="1" y="1" width="7" height="7" stroke="currentColor" stroke-width="1" fill="none"/>
-                <rect x="4" y="4" width="7" height="7" stroke="currentColor" stroke-width="1" fill="none"/>
-            `;
-            if (maximizeBtn) {
-                maximizeBtn.title = 'استعادة النافذة';
-                maximizeBtn.setAttribute('data-state', 'maximized');
-            }
-        } else {
-            // أيقونة التكبير (مربع واحد)
-            maximizeIcon.innerHTML = `
-                <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none"/>
-            `;
-            if (maximizeBtn) {
-                maximizeBtn.title = 'تكبير النافذة';
-                maximizeBtn.setAttribute('data-state', 'normal');
-            }
-        }
-        
-        // إضافة مؤشر بصري للحالة
-        if (maximizeBtn) {
-            maximizeBtn.classList.toggle('maximized', isMaximized);
-        }
-        
-        console.log(`🔄 تم تحديث أيقونة التكبير: ${isMaximized ? 'استعادة' : 'تكبير'}`);
-        
-    } catch (error) {
-        console.error('❌ خطأ في تحديث أيقونة التكبير:', error);
-        
-        // استخدام الأيقونة الافتراضية في حالة الخطأ
-        maximizeIcon.innerHTML = `
-            <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none"/>
-        `;
-    }
-}
-
-/**
- * حفظ البيانات قبل الإغلاق
- */
-async function saveDataBeforeClose() {
-    console.log('💾 حفظ البيانات قبل الإغلاق...');
-    
-    try {
-        // حفظ البيانات الأساسية
-        saveData();
-        
-        // حفظ إعدادات الساعة
-        saveClockSettings();
-        
-        // حفظ حالة النظام
-        const systemState = {
-            lastCloseTime: new Date().toISOString(),
-            currentStoreType: currentStoreType,
-            appStatus: appStatus,
-            diagnostics: systemDiagnostics
-        };
-        localStorage.setItem('systemState', JSON.stringify(systemState));
-        
-        console.log('✅ تم حفظ البيانات قبل الإغلاق');
-        
-    } catch (error) {
-        console.error('❌ خطأ في حفظ البيانات قبل الإغلاق:', error);
-    }
-}
-
-/**
- * اختبار وظائف التحكم في النافذة
- */
-async function testWindowControls() {
-    console.log('🧪 بدء اختبار أزرار التحكم في النافذة...');
-    
-    const testResults = {
-        minimizeButton: false,
-        maximizeButton: false,
-        closeButton: false,
-        electronAPI: false,
-        titlebarVisible: false,
-        timestamp: new Date().toISOString()
-    };
-    
-    try {
-        // اختبار وجود العناصر
-        testResults.titlebarVisible = !!document.getElementById('customTitlebar');
-        
-        // اختبار API
-        if (isElectronApp && window.electronAPI) {
-            testResults.electronAPI = typeof window.electronAPI.windowMinimize === 'function' &&
-                                     typeof window.electronAPI.windowMaximize === 'function' &&
-                                     typeof window.electronAPI.windowClose === 'function';
-        }
-        
-        // اختبار الدوال
-        testResults.minimizeButton = typeof window.minimizeWindow === 'function';
-        testResults.maximizeButton = typeof window.toggleMaximize === 'function';
-        testResults.closeButton = typeof window.closeWindow === 'function';
-        
-        // حفظ نتائج الاختبار
-        systemDiagnostics.windowControlsWorking = testResults.minimizeButton && 
-                                                testResults.maximizeButton && 
-                                                testResults.closeButton;
-        systemDiagnostics.lastTestTime = testResults.timestamp;
-        
-        // عرض النتائج
-        const passedTests = Object.values(testResults).filter(result => result === true).length;
-        const totalTests = Object.keys(testResults).length - 1; // استثناء timestamp
-        
-        console.log('📊 نتائج اختبار التحكم في النافذة:', testResults);
-        console.log(`📈 معدل النجاح: ${passedTests}/${totalTests} (${((passedTests/totalTests)*100).toFixed(1)}%)`);
-        
-        if (systemDiagnostics.windowControlsWorking) {
-            showNotification('✅ أزرار التحكم في النافذة تعمل بشكل صحيح', 'success');
-        } else {
-            showNotification('⚠️ بعض أزرار التحكم قد لا تعمل بشكل صحيح', 'warning');
-        }
-        
-        return testResults;
-        
-    } catch (error) {
-        console.error('❌ خطأ في اختبار التحكم في النافذة:', error);
-        showNotification('❌ فشل في اختبار أزرار التحكم', 'error');
-        return testResults;
-    }
-}
-
-// ========================================
-// ⏰ نظام الساعة الرقمية
-// ========================================
-
-/**
- * إعداد الساعة الرقمية
- */
-function setupDigitalClock() {
-    console.log('⏰ إعداد الساعة الرقمية...');
-    
-    try {
-        // تحميل إعدادات الساعة المحفوظة
-        loadClockSettings();
-        
-        // بدء الساعة
-        startDigitalClock();
-        
-        // تطبيق الإعدادات
-        applyClockSettings();
-        
-        console.log('✅ تم إعداد الساعة الرقمية بنجاح');
-        
-    } catch (error) {
-        console.error('❌ خطأ في إعداد الساعة الرقمية:', error);
-    }
-}
-
-/**
- * بدء الساعة الرقمية
- */
-function startDigitalClock() {
-    // مسح أي interval سابق
-    if (clockInterval) {
-        clearInterval(clockInterval);
-    }
-    
-    // تحديث الساعة كل ثانية
-    clockInterval = setInterval(updateClock, 1000);
-    
-    // تحديث فوري
+// ===========================================
+// إدارة الساعة الرقمية
+// ===========================================
+function startClock() {
     updateClock();
-    
-    console.log('⏰ تم بدء الساعة الرقمية');
+    setInterval(updateClock, 1000);
 }
 
-/**
- * تحديث عرض الساعة
- */
 function updateClock() {
     const now = new Date();
     const timeDisplay = document.getElementById('timeDisplay');
@@ -667,843 +122,3506 @@ function updateClock() {
     
     if (!timeDisplay) return;
     
-    try {
-        // تنسيق الوقت
-        let hours = now.getHours();
-        let minutes = now.getMinutes();
-        let seconds = now.getSeconds();
-        let ampm = '';
-        
-        if (clockSettings.format === '12') {
-            ampm = hours >= 12 ? 'م' : 'ص';
-            hours = hours % 12;
-            hours = hours ? hours : 12; // 0 يصبح 12
-        }
-        
-        // إضافة الأصفار البادئة
-        const timeString = [
-            hours.toString().padStart(2, '0'),
-            minutes.toString().padStart(2, '0'),
-            clockSettings.showSeconds ? seconds.toString().padStart(2, '0') : null
-        ].filter(Boolean).join(':');
-        
-        // تحديث عرض الوقت
-        timeDisplay.textContent = timeString;
-        
-        // تحديث AM/PM
-        if (amPmDisplay) {
-            amPmDisplay.textContent = ampm;
-            amPmDisplay.style.display = clockSettings.format === '12' ? 'inline' : 'none';
-        }
-        
-        // تحديث التاريخ
-        if (dateDisplay && clockSettings.showDate) {
-            const options = { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            };
-            const dateString = now.toLocaleDateString('ar-IQ', options);
-            dateDisplay.textContent = dateString;
-            dateDisplay.style.display = 'block';
-        } else if (dateDisplay) {
-            dateDisplay.style.display = 'none';
-        }
-        
-        // تطبيق تأثير الوميض
-        if (clockSettings.blink && timeDisplay) {
-            timeDisplay.classList.toggle('blink');
-        }
-        
-    } catch (error) {
-        console.error('❌ خطأ في تحديث الساعة:', error);
-    }
-}
-
-/**
- * تحميل إعدادات الساعة
- */
-function loadClockSettings() {
-    try {
-        const saved = localStorage.getItem('clockSettings');
-        if (saved) {
-            const savedSettings = JSON.parse(saved);
-            clockSettings = { ...clockSettings, ...savedSettings };
-            console.log('✅ تم تحميل إعدادات الساعة المحفوظة');
-        }
-    } catch (error) {
-        console.error('❌ خطأ في تحميل إعدادات الساعة:', error);
-    }
-}
-
-/**
- * حفظ إعدادات الساعة
- */
-function saveClockSettings() {
-    try {
-        localStorage.setItem('clockSettings', JSON.stringify(clockSettings));
-        console.log('💾 تم حفظ إعدادات الساعة');
-    } catch (error) {
-        console.error('❌ خطأ في حفظ إعدادات الساعة:', error);
-    }
-}
-
-/**
- * تطبيق إعدادات الساعة
- */
-function applyClockSettings() {
-    const clockElement = document.getElementById('digitalClock');
-    const timeDisplay = document.getElementById('timeDisplay');
+    // تنسيق الوقت
+    let hours = now.getHours();
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
     
-    if (!clockElement || !timeDisplay) return;
+    // تحديد ص/م
+    const ampm = hours >= 12 ? 'م' : 'ص';
     
-    try {
-        // تطبيق الألوان والخط
-        timeDisplay.style.color = clockSettings.textColor;
-        timeDisplay.style.fontSize = clockSettings.fontSize + 'px';
-        
-        // تطبيق النمط
-        clockElement.className = `digital-clock ${clockSettings.style}`;
-        
-        if (clockSettings.glow) {
-            clockElement.classList.add('glow');
-        }
-        
-        // تطبيق ألوان مخصصة
-        clockElement.style.background = clockSettings.bgColor;
-        clockElement.style.borderColor = clockSettings.borderColor;
-        
-        console.log('🎨 تم تطبيق إعدادات الساعة');
-        
-    } catch (error) {
-        console.error('❌ خطأ في تطبيق إعدادات الساعة:', error);
-    }
-}
-
-// ========================================
-// 📊 مراقبة حالة التطبيق
-// ========================================
-
-/**
- * إعداد مراقبة حالة التطبيق
- */
-function setupAppStatusMonitoring() {
-    console.log('📊 إعداد مراقبة حالة التطبيق...');
+    // تحويل إلى 12 ساعة
+    if (hours > 12) hours -= 12;
+    if (hours === 0) hours = 12;
     
-    try {
-        // إعداد مستمعات Electron
-        if (isElectronApp && window.electronAPI) {
-            setupElectronStatusListeners();
-        }
-        
-        // مراقبة محلية لحالة التطبيق
-        startLocalStatusMonitoring();
-        
-        // تحديث الحالة الأولية
-        updateAppStatus('active');
-        
-        console.log('✅ تم إعداد مراقبة حالة التطبيق');
-        
-    } catch (error) {
-        console.error('❌ خطأ في إعداد مراقبة حالة التطبيق:', error);
-    }
-}
-
-/**
- * إعداد مستمعات حالة Electron
- */
-function setupElectronStatusListeners() {
-    if (!window.electronAPI) return;
+    const timeString = `${hours.toString().padStart(2, '0')}:${minutes}:${seconds}`;
     
-    try {
-        // مستمع ping من العملية الرئيسية
-        if (window.electronAPI.onAppPing) {
-            window.electronAPI.onAppPing((event, timestamp) => {
-                // إرسال pong مرة أخرى
-                if (window.electronAPI.sendAppPong) {
-                    window.electronAPI.sendAppPong(timestamp);
-                }
-                lastPingTime = timestamp;
-                updateAppStatus('active');
-            });
-        }
-        
-        // مستمع تحديث الحالة
-        if (window.electronAPI.onAppStatusUpdate) {
-            window.electronAPI.onAppStatusUpdate((event, status) => {
-                updateAppStatus(status);
-            });
-        }
-        
-        // مستمع حالة النافذة
-        if (window.electronAPI.on) {
-            window.electronAPI.on('window-state-changed', (event, state) => {
-                console.log('🔄 تغيير حالة النافذة:', state);
-                
-                if (state.hasOwnProperty('isMaximized')) {
-                    updateMaximizeButton(state.isMaximized);
-                }
-                
-                // تحديث كلاس النافذة
-                if (state.isMaximized !== undefined) {
-                    document.body.classList.toggle('window-maximized', state.isMaximized);
-                }
-            });
-        }
-        
-        console.log('✅ تم إعداد مستمعات Electron');
-        
-    } catch (error) {
-        console.error('❌ خطأ في إعداد مستمعات Electron:', error);
-    }
-}
-
-/**
- * بدء المراقبة المحلية لحالة التطبيق
- */
-function startLocalStatusMonitoring() {
-    // فحص حالة التطبيق كل ثانيتين
-    appStatusInterval = setInterval(() => {
-        const timeSinceLastPing = Date.now() - lastPingTime;
-        
-        // فحص استجابة DOM
-        const startTime = performance.now();
-        requestAnimationFrame(() => {
-            const endTime = performance.now();
-            const frameTime = endTime - startTime;
-            
-            if (frameTime > 100) { // إذا كان Frame time طويل جداً
-                updateAppStatus('warning');
-            } else if (timeSinceLastPing > 5000) {
-                updateAppStatus('frozen');
-            } else {
-                updateAppStatus('active');
-            }
-        });
-    }, 2000);
+    timeDisplay.textContent = timeString;
+    if (amPmDisplay) amPmDisplay.textContent = ampm;
     
-    console.log('✅ تم بدء المراقبة المحلية');
-}
-
-/**
- * تحديث حالة التطبيق
- */
-function updateAppStatus(status) {
-    appStatus = status;
-    const statusIndicator = document.getElementById('statusIndicator');
-    const statusText = document.getElementById('statusText');
+    // تنسيق التاريخ
+    const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 
+                   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
     
-    if (!statusIndicator || !statusText) return;
+    const dayName = days[now.getDay()];
+    const day = now.getDate();
+    const month = months[now.getMonth()];
+    const year = now.getFullYear();
     
-    try {
-        // إزالة الحالات السابقة
-        statusIndicator.classList.remove('frozen', 'warning', 'minimized', 'maximized');
-        document.body.classList.remove('app-frozen');
-        
-        switch (status) {
-            case 'active':
-                statusText.textContent = 'نشط';
-                statusIndicator.style.background = '#4CAF50';
-                break;
-            case 'warning':
-                statusText.textContent = 'بطيء';
-                statusIndicator.classList.add('warning');
-                statusIndicator.style.background = '#FFC107';
-                break;
-            case 'frozen':
-                statusText.textContent = 'متجمد';
-                statusIndicator.classList.add('frozen');
-                statusIndicator.style.background = '#FF5722';
-                document.body.classList.add('app-frozen');
-                break;
-            case 'minimized':
-                statusText.textContent = 'مصغر';
-                statusIndicator.style.background = '#2196F3';
-                break;
-            case 'maximized':
-                statusText.textContent = 'مكبر';
-                statusIndicator.style.background = '#9C27B0';
-                break;
-            default:
-                statusText.textContent = 'عادي';
-                statusIndicator.style.background = '#4CAF50';
-        }
-        
-        console.log(`📊 حالة التطبيق: ${status}`);
-        
-    } catch (error) {
-        console.error('❌ خطأ في تحديث حالة التطبيق:', error);
+    if (dateDisplay) {
+        dateDisplay.textContent = `${dayName}، ${day} ${month} ${year}`;
     }
 }
-
-// ========================================
-// 🎯 إعداد مستمعات الأحداث العامة
-// ========================================
-
-/**
- * إعداد مستمعات أحداث شريط العنوان
- */
-function setupTitlebarEvents() {
-    console.log('🎯 إعداد مستمعات أحداث شريط العنوان...');
-    
-    try {
-        // اختصارات لوحة المفاتيح
-        document.addEventListener('keydown', handleKeyboardShortcuts);
-        
-        // حفظ البيانات عند تغيير الصفحة
-        window.addEventListener('beforeunload', saveDataBeforeClose);
-        
-        // مراقبة تغيير حجم النافذة
-        if (isElectronApp) {
-            let resizeTimeout;
-            window.addEventListener('resize', () => {
-                clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(() => {
-                    updateMaximizeButton();
-                    console.log('🔄 تم تحديث زر التكبير بعد تغيير الحجم');
-                }, 100);
-            });
-        }
-        
-        // مراقبة حالة ملء الشاشة للمتصفح
-        if (!isElectronApp) {
-            document.addEventListener('fullscreenchange', () => {
-                updateMaximizeButton(!!document.fullscreenElement);
-            });
-        }
-        
-        console.log('✅ تم إعداد مستمعات الأحداث');
-        
-    } catch (error) {
-        console.error('❌ خطأ في إعداد مستمعات الأحداث:', error);
-    }
-}
-
-/**
- * معالجة اختصارات لوحة المفاتيح
- */
-function handleKeyboardShortcuts(event) {
-    try {
-        // Alt + F4 للإغلاق
-        if (event.altKey && event.key === 'F4') {
-            event.preventDefault();
-            console.log('⌨️ اختصار إغلاق: Alt + F4');
-            if (typeof window.closeWindow === 'function') {
-                window.closeWindow();
-            }
-        }
-        
-        // F11 للتكبير/استعادة
-        if (event.key === 'F11') {
-            event.preventDefault();
-            console.log('⌨️ اختصار تكبير: F11');
-            if (typeof window.toggleMaximize === 'function') {
-                window.toggleMaximize();
-            }
-        }
-        
-        // Ctrl + M للتصغير
-        if (event.ctrlKey && event.key === 'm') {
-            event.preventDefault();
-            console.log('⌨️ اختصار تصغير: Ctrl + M');
-            if (typeof window.minimizeWindow === 'function') {
-                window.minimizeWindow();
-            }
-        }
-        
-        // Ctrl + Shift + I لاختبار الأزرار
-        if (event.ctrlKey && event.shiftKey && event.key === 'I') {
-            event.preventDefault();
-            console.log('⌨️ اختصار اختبار الأزرار: Ctrl + Shift + I');
-            testWindowControls();
-        }
-        
-    } catch (error) {
-        console.error('❌ خطأ في معالجة اختصارات لوحة المفاتيح:', error);
-    }
-}
-
-// ========================================
-// 🏪 وظائف نظام الكاشير الأساسية
-// ========================================
-
-// تصنيفات المتاجر والمنتجات (كما هو موجود في الكود الأصلي)
-const sampleProducts = {
-    general: [
-        {name: 'قلم أزرق', price: 500, cost: 300, category: 'أدوات مكتبية', fixedStock: 100, movableStock: 50},
-        {name: 'دفتر متوسط', price: 2000, cost: 1200, category: 'أدوات مكتبية', fixedStock: 50, movableStock: 25},
-        {name: 'شريط لاصق', price: 1000, cost: 600, category: 'أدوات مكتبية', fixedStock: 30, movableStock: 15}
-    ],
-    supermarket: [
-        {name: 'رز بسمتي 5 كيلو', price: 15000, cost: 12000, category: 'طعام', fixedStock: 20, movableStock: 10},
-        {name: 'زيت عباد الشمس', price: 8000, cost: 6500, category: 'طعام', fixedStock: 25, movableStock: 15},
-        {name: 'شامبو للشعر', price: 12000, cost: 9000, category: 'منتجات شخصية', fixedStock: 15, movableStock: 8}
-    ],
-    electronics: [
-        {name: 'سماعة بلوتوث', price: 25000, cost: 18000, category: 'إكسسوارات إلكترونية', fixedStock: 10, movableStock: 5},
-        {name: 'شاحن سريع', price: 15000, cost: 10000, category: 'إكسسوارات إلكترونية', fixedStock: 20, movableStock: 12},
-        {name: 'ماوس لاسلكي', price: 30000, cost: 22000, category: 'حاسوب', fixedStock: 8, movableStock: 4}
-    ]
-};
-
-// ========================================
-// 🚀 تهيئة التطبيق الرئيسية
-// ========================================
-
-/**
- * تهيئة التطبيق عند تحميل النافذة
- */
-window.onload = function() {
-    console.log('🚀 بدء تهيئة نظام الكاشير المتكامل...');
-    
-    try {
-        // 1. تهيئة شريط العنوان المخصص أولاً
-        const titlebarSuccess = initializeCustomTitlebar();
-        
-        // 2. تهيئة البيانات النموذجية
-        initializeSampleData();
-        
-        // 3. تحديث عرض المتجر الحالي
-        updateCurrentStoreDisplay();
-        
-        // 4. تحميل البيانات
-        loadProducts();
-        loadCustomers();
-        loadInstallments();
-        
-        // 5. تحديث الإحصائيات
-        updateAllStats();
-        
-        // 6. تحميل الإعدادات
-        loadSettings();
-        
-        // 7. إعداد مستمعات الأحداث
-        setupEventListeners();
-        
-        // 8. تحديث شارات التنبيه
-        updateNotificationBadges();
-        
-        // 9. إعداد التعرف على الصوت
-        setupVoiceRecognition();
-        
-        // 10. عرض رسالة النجاح
-        setTimeout(() => {
-            showNotification('🎉 تم تحميل نظام الكاشير المتكامل بنجاح!', 'success');
-            console.log('✅ تم تحميل نظام الكاشير المتكامل بنجاح!');
-            
-            // اختبار شامل للنظام
-            if (titlebarSuccess) {
-                setTimeout(() => {
-                    runSystemDiagnostics();
-                }, 2000);
-            }
-        }, 1000);
-        
-    } catch (error) {
-        console.error('❌ خطأ في تهيئة التطبيق:', error);
-        showNotification('❌ خطأ في تهيئة التطبيق: ' + error.message, 'error');
-    }
-};
-
-/**
- * تشخيص شامل للنظام
- */
-async function runSystemDiagnostics() {
-    console.log('🔍 بدء تشخيص شامل للنظام...');
-    
-    try {
-        const diagnostics = {
-            timestamp: new Date().toISOString(),
-            titlebar: await testWindowControls(),
-            electron: isElectronApp,
-            dataIntegrity: testDataIntegrity(),
-            performance: await testPerformance(),
-            ui: testUIComponents()
-        };
-        
-        // حفظ نتائج التشخيص
-        localStorage.setItem('lastDiagnostics', JSON.stringify(diagnostics));
-        
-        console.log('🔍 نتائج التشخيص الشامل:', diagnostics);
-        
-        // عرض تقرير مبسط
-        const allPassed = Object.values(diagnostics).every(result => 
-            typeof result === 'boolean' ? result : true
-        );
-        
-        if (allPassed) {
-            showNotification('✅ جميع فحوصات النظام نجحت', 'success');
-        } else {
-            showNotification('⚠️ بعض فحوصات النظام تحتاج إلى انتباه', 'warning');
-        }
-        
-        return diagnostics;
-        
-    } catch (error) {
-        console.error('❌ خطأ في تشخيص النظام:', error);
-        return null;
-    }
-}
-
-/**
- * اختبار تكامل البيانات
- */
-function testDataIntegrity() {
-    try {
-        const tests = [
-            products && Array.isArray(products),
-            sales && Array.isArray(sales),
-            customers && Array.isArray(customers),
-            typeof currentStoreType === 'string' && currentStoreType.length > 0,
-            storeCategories && typeof storeCategories === 'object'
-        ];
-        
-        return tests.every(test => test === true);
-    } catch (error) {
-        console.error('❌ خطأ في اختبار تكامل البيانات:', error);
-        return false;
-    }
-}
-
-/**
- * اختبار الأداء
- */
-async function testPerformance() {
-    try {
-        const startTime = performance.now();
-        
-        // محاكاة عمليات مختلفة
-        await new Promise(resolve => {
-            setTimeout(() => {
-                // محاكاة تحميل المنتجات
-                const testProducts = products.slice(0, 100);
-                
-                // محاكاة عملية بحث
-                const searchResults = testProducts.filter(p => p.name.includes('قلم'));
-                
-                resolve();
-            }, 10);
-        });
-        
-        const endTime = performance.now();
-        const duration = endTime - startTime;
-        
-        console.log(`⚡ اختبار الأداء: ${duration.toFixed(2)} مللي ثانية`);
-        
-        return duration < 100; // أقل من 100 مللي ثانية يعتبر جيد
-    } catch (error) {
-        console.error('❌ خطأ في اختبار الأداء:', error);
-        return false;
-    }
-}
-
-/**
- * اختبار مكونات واجهة المستخدم
- */
-function testUIComponents() {
-    try {
-        const requiredElements = [
-            'customTitlebar',
-            'pos',
-            'products', 
-            'inventory',
-            'customers',
-            'installments',
-            'reports',
-            'settings'
-        ];
-        
-        const missingElements = requiredElements.filter(id => !document.getElementById(id));
-        
-        if (missingElements.length > 0) {
-            console.warn('⚠️ عناصر واجهة مستخدم مفقودة:', missingElements);
-        }
-        
-        return missingElements.length === 0;
-    } catch (error) {
-        console.error('❌ خطأ في اختبار واجهة المستخدم:', error);
-        return false;
-    }
-}
-
-// ========================================
-// 🛠️ وظائف المساعدة والأدوات
-// ========================================
-
-/**
- * إظهار الإشعارات المحسنة
- */
-function showNotification(message, type = 'info') {
-    try {
-        // إزالة الإشعارات السابقة
-        const existingNotifications = document.querySelectorAll('.notification');
-        existingNotifications.forEach(n => n.remove());
-        
-        // إنشاء إشعار جديد
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        
-        // إضافة أيقونة حسب النوع
-        const icons = {
-            success: '✅',
-            error: '❌', 
-            warning: '⚠️',
-            info: 'ℹ️'
-        };
-        
-        notification.innerHTML = `
-            <span class="notification-icon">${icons[type] || 'ℹ️'}</span>
-            <span class="notification-message">${message}</span>
-        `;
-        
-        // إضافة الإشعار للصفحة
-        document.body.appendChild(notification);
-        
-        // إزالة الإشعار بعد 4 ثوان
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.classList.add('fade-out');
-                setTimeout(() => {
-                    notification.remove();
-                }, 300);
-            }
-        }, 4000);
-        
-        // تشغيل الصوت إذا كان مفعل
-        playNotificationSound(type);
-        
-        // إشعار نظام التشغيل في Electron
-        if (isElectronApp && window.electronAPI && window.electronAPI.showNotification) {
-            window.electronAPI.showNotification('نظام الكاشير', message);
-        }
-        
-        console.log(`📢 إشعار (${type}): ${message}`);
-        
-    } catch (error) {
-        console.error('❌ خطأ في عرض الإشعار:', error);
-    }
-}
-
-/**
- * تشغيل أصوات الإشعارات
- */
-function playNotificationSound(type) {
-    if (!document.getElementById('audioAlerts')?.checked) return;
-    
-    try {
-        const context = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = context.createOscillator();
-        const gainNode = context.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(context.destination);
-        
-        switch(type) {
-            case 'success':
-                oscillator.frequency.setValueAtTime(800, context.currentTime);
-                oscillator.frequency.setValueAtTime(1000, context.currentTime + 0.1);
-                break;
-            case 'error':
-                oscillator.frequency.setValueAtTime(400, context.currentTime);
-                oscillator.frequency.setValueAtTime(200, context.currentTime + 0.1);
-                break;
-            case 'warning':
-                oscillator.frequency.setValueAtTime(600, context.currentTime);
-                oscillator.frequency.setValueAtTime(400, context.currentTime + 0.1);
-                break;
-            case 'info':
-                oscillator.frequency.setValueAtTime(600, context.currentTime);
-                break;
-            default:
-                oscillator.frequency.setValueAtTime(500, context.currentTime);
-        }
-        
-        gainNode.gain.setValueAtTime(0.1, context.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
-        
-        oscillator.start(context.currentTime);
-        oscillator.stop(context.currentTime + 0.2);
-        
-    } catch (error) {
-        // تجاهل أخطاء الصوت
-        console.warn('⚠️ فشل في تشغيل صوت الإشعار:', error);
-    }
-}
-
-// ========================================
-// 🔄 باقي وظائف النظام (مختصرة للطول)
-// ========================================
-
-// تهيئة البيانات النموذجية
-function initializeSampleData() {
-    if (products.length === 0) {
-        Object.keys(sampleProducts).forEach(storeType => {
-            sampleProducts[storeType].forEach(product => {
-                products.push({
-                    id: Date.now() + Math.random(),
-                    name: product.name,
-                    price: product.price,
-                    cost: product.cost,
-                    category: product.category,
-                    fixedStock: product.fixedStock,
-                    movableStock: product.movableStock,
-                    minStock: 10,
-                    unit: 'قطعة',
-                    storeType: storeType,
-                    barcode: generateBarcode(),
-                    description: '',
-                    createdAt: new Date().toISOString()
-                });
-            });
-        });
-        saveProducts();
-    }
-}
-
-// توليد باركود
-function generateBarcode() {
-    return '8' + Date.now().toString().slice(-12) + Math.floor(Math.random() * 100).toString().padStart(2, '0');
-}
-
-// باقي الوظائف الأساسية (نفس الكود الأصلي مع تحسينات طفيفة)
-// ... (يمكن إضافة باقي الوظائف هنا)
-
-// ========================================
-// 🎛️ وظائف إعدادات الساعة (واجهة المستخدم)
-// ========================================
 
 function showClockSettings() {
     document.getElementById('clockSettingsModal').style.display = 'block';
-    loadClockSettingsToForm();
-}
-
-function loadClockSettingsToForm() {
-    document.getElementById('clockTextColor').value = clockSettings.textColor;
-    document.getElementById('clockBgColor').value = clockSettings.bgColor.replace(/rgba?\([^)]+\)/g, '#667eea');
-    document.getElementById('clockBorderColor').value = clockSettings.borderColor.replace(/rgba?\([^)]+\)/g, '#764ba2');
-    
-    document.querySelector(`input[name="timeFormat"][value="${clockSettings.format}"]`).checked = true;
-    document.getElementById('showSeconds').checked = clockSettings.showSeconds;
-    document.getElementById('showDate').checked = clockSettings.showDate;
-    document.getElementById('clockFontSize').value = clockSettings.fontSize;
-    document.getElementById('fontSizeValue').textContent = clockSettings.fontSize + 'px';
-    document.getElementById('clockGlow').checked = clockSettings.glow;
-    document.getElementById('clockBlink').checked = clockSettings.blink;
-    document.getElementById('clockStyle').value = clockSettings.style;
 }
 
 function updateClockSettings() {
-    clockSettings.textColor = document.getElementById('clockTextColor').value;
-    clockSettings.bgColor = document.getElementById('clockBgColor').value;
-    clockSettings.borderColor = document.getElementById('clockBorderColor').value;
-    clockSettings.format = document.querySelector('input[name="timeFormat"]:checked').value;
-    clockSettings.showSeconds = document.getElementById('showSeconds').checked;
-    clockSettings.showDate = document.getElementById('showDate').checked;
-    clockSettings.fontSize = parseInt(document.getElementById('clockFontSize').value);
-    clockSettings.glow = document.getElementById('clockGlow').checked;
-    clockSettings.blink = document.getElementById('clockBlink').checked;
-    clockSettings.style = document.getElementById('clockStyle').value;
+    // تطبيق إعدادات الساعة
+    const clockElement = document.querySelector('.digital-clock');
+    const textColor = document.getElementById('clockTextColor').value;
+    const bgColor = document.getElementById('clockBgColor').value;
+    const borderColor = document.getElementById('clockBorderColor').value;
+    const fontSize = document.getElementById('clockFontSize').value;
+    const showGlow = document.getElementById('clockGlow').checked;
+    const showBlink = document.getElementById('clockBlink').checked;
     
-    document.getElementById('fontSizeValue').textContent = clockSettings.fontSize + 'px';
+    if (clockElement) {
+        clockElement.style.color = textColor;
+        clockElement.style.background = bgColor;
+        clockElement.style.borderColor = borderColor;
+        clockElement.style.fontSize = fontSize + 'px';
+        
+        if (showGlow) {
+            clockElement.style.textShadow = `0 0 10px ${textColor}`;
+        } else {
+            clockElement.style.textShadow = 'none';
+        }
+        
+        if (showBlink) {
+            clockElement.classList.add('blink');
+        } else {
+            clockElement.classList.remove('blink');
+        }
+    }
     
-    applyClockSettings();
-    startDigitalClock();
+    // تحديث حجم الخط في العرض
+    const fontSizeValue = document.getElementById('fontSizeValue');
+    if (fontSizeValue) {
+        fontSizeValue.textContent = fontSize + 'px';
+    }
 }
 
 function resetClockSettings() {
-    if (confirm('هل تريد إعادة تعيين جميع إعدادات الساعة؟')) {
-        clockSettings = {
-            textColor: '#ffffff',
-            bgColor: 'rgba(255, 255, 255, 0.1)',
-            borderColor: 'rgba(255, 255, 255, 0.2)',
-            format: '12',
-            showSeconds: true,
-            showDate: true,
-            fontSize: 16,
-            glow: false,
-            blink: false,
-            style: 'modern'
+    document.getElementById('clockTextColor').value = '#ffffff';
+    document.getElementById('clockBgColor').value = '#667eea';
+    document.getElementById('clockBorderColor').value = '#764ba2';
+    document.getElementById('clockFontSize').value = '16';
+    document.getElementById('clockGlow').checked = false;
+    document.getElementById('clockBlink').checked = false;
+    updateClockSettings();
+}
+
+function saveClockSettings() {
+    updateClockSettings();
+    showNotification('تم حفظ إعدادات الساعة', 'success');
+    closeModal('clockSettingsModal');
+}
+
+// ===========================================
+// إدارة أنواع المتاجر
+// ===========================================
+function selectStoreFromHeader(storeType) {
+    currentStoreType = storeType;
+    
+    // تحديث النص في الزر
+    const currentStoreText = document.getElementById('currentStoreText');
+    const storeNames = {
+        general: '🏪 متجر عام',
+        supermarket: '🛒 سوبر ماركت',
+        electronics: '📱 إلكترونيات',
+        clothes: '👕 ملابس',
+        vegetables: '🥬 خضروات',
+        beverages: '🥤 مشروبات',
+        restaurant: '🍽️ مطعم',
+        hotel: '🏨 فندق'
+    };
+    
+    if (currentStoreText) {
+        currentStoreText.textContent = storeNames[storeType];
+    }
+    
+    // تحديث الأزرار النشطة
+    document.querySelectorAll('.store-type-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.type === storeType) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // تحديث التصنيفات والمنتجات
+    updateCategoriesList();
+    updateProductsGrid();
+    updateProductCategorySelect();
+    
+    // إخفاء القائمة المنسدلة
+    document.getElementById('storeDropdown').classList.remove('show');
+    
+    showNotification(`تم تغيير نوع المتجر إلى: ${storeNames[storeType]}`, 'info');
+}
+
+function toggleStoreDropdown() {
+    const dropdown = document.getElementById('storeDropdown');
+    dropdown.classList.toggle('show');
+}
+
+// إغلاق القائمة المنسدلة عند النقر خارجها
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('storeDropdown');
+    const button = document.querySelector('.current-store-btn');
+    
+    if (!dropdown.contains(event.target) && !button.contains(event.target)) {
+        dropdown.classList.remove('show');
+    }
+});
+
+// ===========================================
+// إدارة المنتجات
+// ===========================================
+function loadSampleProducts() {
+    // تحميل منتجات تجريبية حسب نوع المتجر الحالي
+    if (sampleProducts[currentStoreType]) {
+        products = [...sampleProducts[currentStoreType]];
+        saveData();
+    }
+}
+
+function addProduct() {
+    const name = document.getElementById('productName').value;
+    const barcode = document.getElementById('productBarcode').value;
+    const price = parseFloat(document.getElementById('productPrice').value);
+    const cost = parseFloat(document.getElementById('productCost').value) || 0;
+    const category = document.getElementById('productCategory').value;
+    const unit = document.getElementById('productUnit').value;
+    const fixedStock = parseInt(document.getElementById('productFixedStock').value) || 0;
+    const movableStock = parseInt(document.getElementById('productMovableStock').value) || 0;
+    const minStock = parseInt(document.getElementById('productMinStock').value) || 10;
+    const description = document.getElementById('productDescription').value;
+
+    if (!name || !price) {
+        showNotification('يرجى ملء الحقول المطلوبة', 'error');
+        return;
+    }
+
+    // التحقق من عدم تكرار الباركود
+    if (barcode && products.some(p => p.barcode === barcode)) {
+        showNotification('الباركود موجود مسبقاً', 'error');
+        return;
+    }
+
+    const product = {
+        id: Date.now(),
+        name,
+        barcode: barcode || generateBarcode(),
+        price,
+        cost,
+        category,
+        unit,
+        fixedStock,
+        movableStock,
+        minStock,
+        description,
+        createdAt: new Date().toISOString()
+    };
+
+    products.push(product);
+    saveData();
+    updateProductsGrid();
+    updateProductsTable();
+    clearProductForm();
+    
+    showNotification('تم إضافة المنتج بنجاح', 'success');
+    
+    if (settings.audioAlerts) {
+        playNotificationSound();
+    }
+}
+
+function generateBarcode() {
+    return Date.now().toString() + Math.floor(Math.random() * 1000);
+}
+
+function clearProductForm() {
+    document.getElementById('productName').value = '';
+    document.getElementById('productBarcode').value = '';
+    document.getElementById('productPrice').value = '';
+    document.getElementById('productCost').value = '';
+    document.getElementById('productFixedStock').value = '';
+    document.getElementById('productMovableStock').value = '';
+    document.getElementById('productMinStock').value = '10';
+    document.getElementById('productDescription').value = '';
+}
+
+function deleteProduct(id) {
+    if (confirm('هل أنت متأكد من حذف هذا المنتج؟')) {
+        products = products.filter(p => p.id !== id);
+        saveData();
+        updateProductsGrid();
+        updateProductsTable();
+        showNotification('تم حذف المنتج', 'warning');
+    }
+}
+
+function editProduct(id) {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+
+    // ملء النموذج بيانات المنتج
+    document.getElementById('productName').value = product.name;
+    document.getElementById('productBarcode').value = product.barcode;
+    document.getElementById('productPrice').value = product.price;
+    document.getElementById('productCost').value = product.cost;
+    document.getElementById('productCategory').value = product.category;
+    document.getElementById('productUnit').value = product.unit;
+    document.getElementById('productFixedStock').value = product.fixedStock;
+    document.getElementById('productMovableStock').value = product.movableStock;
+    document.getElementById('productMinStock').value = product.minStock;
+    document.getElementById('productDescription').value = product.description;
+
+    // حذف المنتج القديم
+    deleteProduct(id);
+    
+    // التمرير إلى النموذج
+    document.querySelector('#products .card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function updateProductsGrid() {
+    const grid = document.getElementById('productsGrid');
+    if (!grid) return;
+
+    let filteredProducts = products.filter(product => {
+        // فلترة حسب التصنيف
+        if (selectedCategory !== 'all' && product.category !== selectedCategory) {
+            return false;
+        }
+        
+        // فلترة حسب البحث
+        const searchTerm = document.getElementById('productSearch')?.value.toLowerCase() || '';
+        if (searchTerm && !product.name.toLowerCase().includes(searchTerm)) {
+            return false;
+        }
+        
+        // فلترة حسب النطاق السعري
+        const priceMin = parseFloat(document.getElementById('priceMin')?.value) || 0;
+        const priceMax = parseFloat(document.getElementById('priceMax')?.value) || Infinity;
+        if (product.price < priceMin || product.price > priceMax) {
+            return false;
+        }
+        
+        // فلترة المخزون المنخفض
+        const lowStockOnly = document.getElementById('lowStockOnly')?.checked || false;
+        if (lowStockOnly && (product.fixedStock + product.movableStock) > product.minStock) {
+            return false;
+        }
+        
+        return true;
+    });
+
+    // ترتيب المنتجات
+    const sortBy = document.getElementById('sortBy')?.value || 'name';
+    filteredProducts.sort((a, b) => {
+        switch (sortBy) {
+            case 'price':
+                return a.price - b.price;
+            case 'stock':
+                return (a.fixedStock + a.movableStock) - (b.fixedStock + b.movableStock);
+            default:
+                return a.name.localeCompare(b.name, 'ar');
+        }
+    });
+
+    grid.innerHTML = filteredProducts.map(product => {
+        const totalStock = product.fixedStock + product.movableStock;
+        const isLowStock = totalStock <= product.minStock;
+        
+        return `
+            <div class="product-card" onclick="addToCart(${product.id})">
+                <div class="product-image">${getProductIcon(product.category)}</div>
+                <div class="product-name">${product.name}</div>
+                <div class="product-price">${formatCurrency(product.price)}</div>
+                <div class="product-stock ${isLowStock ? 'low-stock' : ''}">
+                    المخزون: ${totalStock} ${product.unit}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function updateProductsTable() {
+    const tbody = document.getElementById('productsTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = products.map(product => {
+        const totalStock = product.fixedStock + product.movableStock;
+        const profit = product.price - product.cost;
+        const profitPercent = product.cost > 0 ? ((profit / product.cost) * 100).toFixed(1) : 0;
+        const isLowStock = totalStock <= product.minStock;
+        
+        return `
+            <tr>
+                <td>${product.name}</td>
+                <td>${product.barcode}</td>
+                <td>${formatCurrency(product.price)}</td>
+                <td>${formatCurrency(product.cost)}</td>
+                <td>${formatCurrency(profit)} (${profitPercent}%)</td>
+                <td>${product.fixedStock}</td>
+                <td>${product.movableStock}</td>
+                <td>
+                    <span class="product-stock ${isLowStock ? 'low-stock' : ''}">
+                        ${isLowStock ? '⚠️ منخفض' : '✅ طبيعي'}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-primary" onclick="editProduct(${product.id})" style="padding: 4px 8px; font-size: 11px;">تعديل</button>
+                    <button class="btn btn-danger" onclick="deleteProduct(${product.id})" style="padding: 4px 8px; font-size: 11px;">حذف</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function getProductIcon(category) {
+    const icons = {
+        'عام': '📦',
+        'أطعمة': '🍞',
+        'مشروبات': '🥤',
+        'تنظيف': '🧽',
+        'شخصي': '🧴',
+        'أدوات': '🔧',
+        'خضروات': '🥬',
+        'فواكه': '🍎',
+        'لحوم': '🥩',
+        'أسماك': '🐟',
+        'ألبان': '🥛',
+        'حبوب': '🌾',
+        'معلبات': '🥫',
+        'مجمدات': '❄️',
+        'مخبوزات': '🍞',
+        'هواتف': '📱',
+        'حاسوب': '💻',
+        'تلفزيون': '📺',
+        'صوتيات': '🎵',
+        'إكسسوارات': '🎧',
+        'ألعاب': '🎮',
+        'أجهزة منزلية': '🏠',
+        'رجالي': '👔',
+        'نسائي': '👗',
+        'أطفال': '👶',
+        'رياضي': '👟',
+        'أحذية': '👞',
+        'حقائب': '👜'
+    };
+    return icons[category] || '📦';
+}
+
+// ===========================================
+// إدارة التصنيفات
+// ===========================================
+function updateCategoriesList() {
+    const categoriesList = document.getElementById('categoriesList');
+    if (!categoriesList) return;
+
+    const categories = storeCategories[currentStoreType] || ['عام'];
+    
+    categoriesList.innerHTML = `
+        <div class="category-btn ${selectedCategory === 'all' ? 'active' : ''}" onclick="selectCategory('all')">
+            📂 جميع المنتجات
+        </div>
+        ${categories.map(category => `
+            <div class="category-btn ${selectedCategory === category ? 'active' : ''}" onclick="selectCategory('${category}')">
+                ${getProductIcon(category)} ${category}
+            </div>
+        `).join('')}
+    `;
+    
+    // تحديث قائمة التصنيفات في نموذج إضافة المنتجات
+    updateProductCategorySelect();
+}
+
+function updateProductCategorySelect() {
+    const categorySelect = document.getElementById('productCategory');
+    if (!categorySelect) return;
+
+    const categories = storeCategories[currentStoreType] || ['عام'];
+    
+    categorySelect.innerHTML = categories.map(category => 
+        `<option value="${category}">${category}</option>`
+    ).join('');
+}
+
+function selectCategory(category) {
+    selectedCategory = category;
+    updateCategoriesList();
+    updateProductsGrid();
+}
+
+// ===========================================
+// إدارة عربة التسوق
+// ===========================================
+function addToCart(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const totalStock = product.fixedStock + product.movableStock;
+    if (totalStock <= 0) {
+        showNotification('المنتج غير متوفر في المخزون', 'error');
+        return;
+    }
+
+    const existingItem = cart.find(item => item.productId === productId);
+    
+    if (existingItem) {
+        if (existingItem.quantity >= totalStock) {
+            showNotification('الكمية المطلوبة تتجاوز المخزون المتاح', 'error');
+            return;
+        }
+        existingItem.quantity++;
+    } else {
+        cart.push({
+            productId,
+            quantity: 1,
+            price: product.price
+        });
+    }
+
+    updateCartDisplay();
+    updateNotificationBadges();
+    
+    if (settings.audioAlerts) {
+        playNotificationSound();
+    }
+}
+
+function removeFromCart(productId) {
+    cart = cart.filter(item => item.productId !== productId);
+    updateCartDisplay();
+    updateNotificationBadges();
+}
+
+function updateQuantity(productId, newQuantity) {
+    const product = products.find(p => p.id === productId);
+    const totalStock = product.fixedStock + product.movableStock;
+    
+    if (newQuantity <= 0) {
+        removeFromCart(productId);
+        return;
+    }
+    
+    if (newQuantity > totalStock) {
+        showNotification('الكمية المطلوبة تتجاوز المخزون المتاح', 'error');
+        return;
+    }
+
+    const cartItem = cart.find(item => item.productId === productId);
+    if (cartItem) {
+        cartItem.quantity = newQuantity;
+        updateCartDisplay();
+    }
+}
+
+function updateCartDisplay() {
+    const cartItems = document.getElementById('cartItems');
+    const totalAmount = document.getElementById('totalAmount');
+    const itemCount = document.getElementById('itemCount');
+    
+    if (!cartItems) return;
+
+    if (cart.length === 0) {
+        cartItems.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🛒</div>
+                <p>العربة فارغة</p>
+                <small>اختر منتجات من القائمة</small>
+            </div>
+        `;
+        if (totalAmount) totalAmount.textContent = formatCurrency(0);
+        if (itemCount) itemCount.textContent = '0';
+        return;
+    }
+
+    let total = 0;
+    let count = 0;
+
+    cartItems.innerHTML = cart.map(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (!product) return '';
+
+        const itemTotal = item.quantity * item.price;
+        total += itemTotal;
+        count += item.quantity;
+
+        return `
+            <div class="cart-item">
+                <div class="cart-item-details">
+                    <div class="cart-item-name">${product.name}</div>
+                    <div class="cart-item-price">${formatCurrency(item.price)} × ${item.quantity} = ${formatCurrency(itemTotal)}</div>
+                </div>
+                <div class="quantity-controls">
+                    <button class="qty-btn" onclick="updateQuantity(${item.productId}, ${item.quantity - 1})">-</button>
+                    <span style="margin: 0 8px; font-weight: bold;">${item.quantity}</span>
+                    <button class="qty-btn" onclick="updateQuantity(${item.productId}, ${item.quantity + 1})">+</button>
+                    <button class="qty-btn" onclick="removeFromCart(${item.productId})" style="background: #e74c3c; margin-right: 8px;">×</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    if (totalAmount) totalAmount.textContent = formatCurrency(total);
+    if (itemCount) itemCount.textContent = count.toString();
+}
+
+function clearCart() {
+    if (cart.length === 0) return;
+    
+    if (confirm('هل أنت متأكد من مسح العربة؟')) {
+        cart = [];
+        updateCartDisplay();
+        updateNotificationBadges();
+        showNotification('تم مسح العربة', 'info');
+    }
+}
+
+// ===========================================
+// إدارة المبيعات
+// ===========================================
+function processCashSale() {
+    if (cart.length === 0) {
+        showNotification('العربة فارغة', 'error');
+        return;
+    }
+
+    const sale = {
+        id: Date.now(),
+        type: 'cash',
+        items: [...cart],
+        total: cart.reduce((sum, item) => sum + (item.quantity * item.price), 0),
+        tax: 0,
+        date: new Date().toISOString(),
+        customerId: null
+    };
+
+    // تحديث المخزون
+    cart.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (product) {
+            // خصم من المخزن المتحرك أولاً
+            if (product.movableStock >= item.quantity) {
+                product.movableStock -= item.quantity;
+            } else {
+                const remaining = item.quantity - product.movableStock;
+                product.movableStock = 0;
+                product.fixedStock -= remaining;
+            }
+        }
+    });
+
+    sales.push(sale);
+    saveData();
+    
+    // طباعة الفاتورة
+    printReceipt(sale);
+    
+    // مسح العربة
+    cart = [];
+    updateCartDisplay();
+    updateProductsGrid();
+    updateStats();
+    updateNotificationBadges();
+    
+    showNotification(`تم إتمام البيع النقدي بقيمة ${formatCurrency(sale.total)}`, 'success');
+    
+    if (settings.audioAlerts) {
+        playSuccessSound();
+    }
+}
+
+function showInstallmentModal() {
+    if (cart.length === 0) {
+        showNotification('العربة فارغة', 'error');
+        return;
+    }
+
+    const total = cart.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+    
+    if (total < settings.minInstallmentAmount) {
+        showNotification(`الحد الأدنى للبيع بالأقساط هو ${formatCurrency(settings.minInstallmentAmount)}`, 'error');
+        return;
+    }
+
+    // تحديث قائمة العملاء
+    updateCustomersList();
+    
+    // تعبئة المبلغ
+    document.getElementById('originalAmount').value = total;
+    document.getElementById('interestRate').value = settings.defaultInterestRate;
+    document.getElementById('installmentCount').value = settings.defaultInstallmentCount;
+    
+    calculateInstallment();
+    
+    document.getElementById('installmentModal').style.display = 'block';
+}
+
+function updateCustomersList() {
+    const customerSelect = document.getElementById('installmentCustomer');
+    if (!customerSelect) return;
+
+    customerSelect.innerHTML = '<option value="">اختر عميل موجود</option>' +
+        customers.map(customer => 
+            `<option value="${customer.id}">${customer.name} - ${customer.phone}</option>`
+        ).join('');
+}
+
+function calculateInstallment() {
+    const originalAmount = parseFloat(document.getElementById('originalAmount').value) || 0;
+    const interestRate = parseFloat(document.getElementById('interestRate').value) || 0;
+    const installmentCount = parseInt(document.getElementById('installmentCount').value) || 1;
+
+    const totalWithInterest = originalAmount * (1 + interestRate / 100);
+    const monthlyPayment = totalWithInterest / installmentCount;
+
+    document.getElementById('totalWithInterest').value = totalWithInterest;
+    document.getElementById('monthlyPayment').value = monthlyPayment;
+
+    // عرض جدول الأقساط
+    showInstallmentSchedule(totalWithInterest, monthlyPayment, installmentCount);
+}
+
+function showInstallmentSchedule(total, monthly, count) {
+    const scheduleDiv = document.getElementById('installmentSchedule');
+    if (!scheduleDiv) return;
+
+    let html = '<h4>جدول الأقساط المتوقع:</h4><div class="installment-schedule">';
+    
+    for (let i = 1; i <= count; i++) {
+        const dueDate = new Date();
+        dueDate.setMonth(dueDate.getMonth() + i);
+        
+        html += `
+            <div class="schedule-item">
+                <span>القسط ${i}</span>
+                <span>${formatCurrency(monthly)}</span>
+                <span>${dueDate.toLocaleDateString('ar-EG')}</span>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    scheduleDiv.innerHTML = html;
+}
+
+function createInstallmentSale() {
+    const customerId = document.getElementById('installmentCustomer').value;
+    const newCustomerName = document.getElementById('newCustomerName').value;
+    const phone = document.getElementById('installmentPhone').value;
+    
+    let selectedCustomerId = customerId;
+    
+    // إنشاء عميل جديد إذا لزم الأمر
+    if (!customerId && newCustomerName) {
+        const newCustomer = {
+            id: Date.now(),
+            name: newCustomerName,
+            phone: phone || '',
+            email: '',
+            address: '',
+            creditLimit: 0,
+            notes: '',
+            createdAt: new Date().toISOString()
         };
         
-        loadClockSettingsToForm();
-        applyClockSettings();
-        startDigitalClock();
+        customers.push(newCustomer);
+        selectedCustomerId = newCustomer.id;
+    }
+    
+    if (!selectedCustomerId) {
+        showNotification('يرجى اختيار عميل أو إدخال اسم عميل جديد', 'error');
+        return;
+    }
+
+    const originalAmount = parseFloat(document.getElementById('originalAmount').value);
+    const totalWithInterest = parseFloat(document.getElementById('totalWithInterest').value);
+    const monthlyPayment = parseFloat(document.getElementById('monthlyPayment').value);
+    const installmentCount = parseInt(document.getElementById('installmentCount').value);
+    const interestRate = parseFloat(document.getElementById('interestRate').value);
+
+    const installmentSale = {
+        id: Date.now(),
+        customerId: selectedCustomerId,
+        items: [...cart],
+        originalAmount,
+        totalWithInterest,
+        monthlyPayment,
+        installmentCount,
+        interestRate,
+        paidAmount: 0,
+        remainingAmount: totalWithInterest,
+        nextPaymentDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        payments: []
+    };
+
+    // تحديث المخزون
+    cart.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (product) {
+            if (product.movableStock >= item.quantity) {
+                product.movableStock -= item.quantity;
+            } else {
+                const remaining = item.quantity - product.movableStock;
+                product.movableStock = 0;
+                product.fixedStock -= remaining;
+            }
+        }
+    });
+
+    installmentSales.push(installmentSale);
+    saveData();
+    
+    // مسح العربة
+    cart = [];
+    updateCartDisplay();
+    updateProductsGrid();
+    updateInstallmentsTable();
+    updateStats();
+    updateNotificationBadges();
+    
+    closeModal('installmentModal');
+    
+    showNotification(`تم إنشاء بيع بالأقساط بقيمة ${formatCurrency(totalWithInterest)}`, 'success');
+    
+    // طباعة فاتورة الأقساط
+    printInstallmentReceipt(installmentSale);
+}
+
+// ===========================================
+// إدارة العملاء
+// ===========================================
+function addCustomer() {
+    const name = document.getElementById('customerName').value;
+    const phone = document.getElementById('customerPhone').value;
+    const email = document.getElementById('customerEmail').value;
+    const address = document.getElementById('customerAddress').value;
+    const creditLimit = parseFloat(document.getElementById('customerCreditLimit').value) || 0;
+    const notes = document.getElementById('customerNotes').value;
+
+    if (!name) {
+        showNotification('يرجى إدخال اسم العميل', 'error');
+        return;
+    }
+
+    // التحقق من عدم تكرار رقم الهاتف
+    if (phone && customers.some(c => c.phone === phone)) {
+        showNotification('رقم الهاتف موجود مسبقاً', 'error');
+        return;
+    }
+
+    const customer = {
+        id: Date.now(),
+        name,
+        phone: phone || '',
+        email: email || '',
+        address: address || '',
+        creditLimit,
+        notes: notes || '',
+        createdAt: new Date().toISOString()
+    };
+
+    customers.push(customer);
+    saveData();
+    updateCustomersTable();
+    clearCustomerForm();
+    updateStats();
+    
+    showNotification('تم إضافة العميل بنجاح', 'success');
+}
+
+function clearCustomerForm() {
+    document.getElementById('customerName').value = '';
+    document.getElementById('customerPhone').value = '';
+    document.getElementById('customerEmail').value = '';
+    document.getElementById('customerAddress').value = '';
+    document.getElementById('customerCreditLimit').value = '0';
+    document.getElementById('customerNotes').value = '';
+}
+
+function deleteCustomer(id) {
+    if (confirm('هل أنت متأكد من حذف هذا العميل؟')) {
+        customers = customers.filter(c => c.id !== id);
+        saveData();
+        updateCustomersTable();
+        updateStats();
+        showNotification('تم حذف العميل', 'warning');
+    }
+}
+
+function updateCustomersTable() {
+    const tbody = document.getElementById('customersTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = customers.map(customer => {
+        // حساب إجمالي المشتريات
+        const customerSales = sales.filter(s => s.customerId === customer.id);
+        const totalPurchases = customerSales.reduce((sum, sale) => sum + sale.total, 0);
         
-        showNotification('✅ تم إعادة تعيين إعدادات الساعة', 'success');
+        // حساب الرصيد المستحق
+        const customerInstallments = installmentSales.filter(is => is.customerId === customer.id);
+        const totalDebt = customerInstallments.reduce((sum, installment) => sum + installment.remainingAmount, 0);
+        
+        // آخر شراء
+        const lastSale = customerSales.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        const lastPurchase = lastSale ? new Date(lastSale.date).toLocaleDateString('ar-EG') : 'لا يوجد';
+        
+        return `
+            <tr>
+                <td>${customer.name}</td>
+                <td>${customer.phone}</td>
+                <td>${customer.email}</td>
+                <td>${formatCurrency(totalPurchases)}</td>
+                <td class="${totalDebt > 0 ? 'currency' : ''}">${formatCurrency(totalDebt)}</td>
+                <td>${lastPurchase}</td>
+                <td>
+                    <button class="btn btn-primary" onclick="viewCustomerDetails(${customer.id})" style="padding: 4px 8px; font-size: 11px;">تفاصيل</button>
+                    <button class="btn btn-danger" onclick="deleteCustomer(${customer.id})" style="padding: 4px 8px; font-size: 11px;">حذف</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function viewCustomerDetails(customerId) {
+    const customer = customers.find(c => c.id === customerId);
+    if (!customer) return;
+    
+    // يمكن إضافة نافذة منبثقة لعرض تفاصيل العميل
+    showNotification(`عرض تفاصيل العميل: ${customer.name}`, 'info');
+}
+
+// ===========================================
+// إدارة الأقساط
+// ===========================================
+function updateInstallmentsTable() {
+    const tbody = document.getElementById('installmentsTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = installmentSales.map(installment => {
+        const customer = customers.find(c => c.id === installment.customerId);
+        const customerName = customer ? customer.name : 'غير محدد';
+        
+        let statusClass = '';
+        let statusText = '';
+        
+        if (installment.remainingAmount <= 0) {
+            statusClass = 'status-paid';
+            statusText = 'مكتمل';
+        } else if (new Date(installment.nextPaymentDate) < new Date()) {
+            statusClass = 'status-overdue';
+            statusText = 'متأخر';
+        } else {
+            statusClass = 'status-pending';
+            statusText = 'نشط';
+        }
+        
+        return `
+            <tr>
+                <td>${customerName}</td>
+                <td>${formatCurrency(installment.originalAmount)}</td>
+                <td>${formatCurrency(installment.totalWithInterest)}</td>
+                <td>${formatCurrency(installment.paidAmount)}</td>
+                <td>${formatCurrency(installment.remainingAmount)}</td>
+                <td>${formatCurrency(installment.monthlyPayment)}</td>
+                <td><span class="payment-status ${statusClass}">${statusText}</span></td>
+                <td>
+                    <button class="btn btn-success" onclick="showPaymentModal(${installment.id})" style="padding: 4px 8px; font-size: 11px;">دفع</button>
+                    <button class="btn btn-info" onclick="viewInstallmentDetails(${installment.id})" style="padding: 4px 8px; font-size: 11px;">تفاصيل</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function showPaymentModal(installmentId) {
+    const installment = installmentSales.find(is => is.id === installmentId);
+    const customer = customers.find(c => c.id === installment.customerId);
+    
+    if (!installment || !customer) return;
+    
+    document.getElementById('paymentAmount').value = installment.monthlyPayment;
+    document.getElementById('paymentDetails').innerHTML = `
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h4>تفاصيل القسط</h4>
+            <p><strong>العميل:</strong> ${customer.name}</p>
+            <p><strong>المبلغ المتبقي:</strong> ${formatCurrency(installment.remainingAmount)}</p>
+            <p><strong>القسط الشهري:</strong> ${formatCurrency(installment.monthlyPayment)}</p>
+            <p><strong>تاريخ الاستحقاق:</strong> ${new Date(installment.nextPaymentDate).toLocaleDateString('ar-EG')}</p>
+        </div>
+    `;
+    
+    document.getElementById('paymentModal').style.display = 'block';
+    document.getElementById('paymentModal').dataset.installmentId = installmentId;
+}
+
+function processPayment() {
+    const installmentId = parseInt(document.getElementById('paymentModal').dataset.installmentId);
+    const paymentAmount = parseFloat(document.getElementById('paymentAmount').value);
+    const notes = document.getElementById('paymentNotes').value;
+    
+    if (!paymentAmount || paymentAmount <= 0) {
+        showNotification('يرجى إدخال مبلغ صحيح', 'error');
+        return;
+    }
+    
+    const installment = installmentSales.find(is => is.id === installmentId);
+    if (!installment) return;
+    
+    if (paymentAmount > installment.remainingAmount) {
+        showNotification('المبلغ المدفوع أكبر من المبلغ المتبقي', 'error');
+        return;
+    }
+    
+    // إضافة الدفعة
+    const payment = {
+        id: Date.now(),
+        amount: paymentAmount,
+        date: new Date().toISOString(),
+        notes: notes || ''
+    };
+    
+    installment.payments.push(payment);
+    installment.paidAmount += paymentAmount;
+    installment.remainingAmount -= paymentAmount;
+    
+    // تحديث تاريخ القسط التالي
+    if (installment.remainingAmount > 0) {
+        const nextDate = new Date(installment.nextPaymentDate);
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        installment.nextPaymentDate = nextDate.toISOString();
+    } else {
+        installment.status = 'completed';
+    }
+    
+    saveData();
+    updateInstallmentsTable();
+    updateStats();
+    updateNotificationBadges();
+    closeModal('paymentModal');
+    
+    showNotification(`تم تسجيل دفعة بقيمة ${formatCurrency(paymentAmount)}`, 'success');
+    
+    // طباعة إيصال الدفع
+    if (settings.autoPrintPayment) {
+        printPaymentReceipt(installment, payment);
     }
 }
 
-// ========================================
-// 💾 وظائف حفظ البيانات
-// ========================================
+function viewInstallmentDetails(installmentId) {
+    const installment = installmentSales.find(is => is.id === installmentId);
+    if (!installment) return;
+    
+    // يمكن إضافة نافذة منبثقة لعرض تفاصيل القسط
+    showNotification('عرض تفاصيل القسط', 'info');
+}
 
-function saveData() {
-    try {
-        saveProducts();
-        localStorage.setItem('sales', JSON.stringify(sales));
-        localStorage.setItem('customers', JSON.stringify(customers));
-        localStorage.setItem('installmentSales', JSON.stringify(installmentSales));
-        localStorage.setItem('inventoryMovements', JSON.stringify(inventoryMovements));
-    } catch (error) {
-        showNotification('❌ خطأ في حفظ البيانات', 'error');
-        console.error('Save error:', error);
+// ===========================================
+// إدارة المخزون
+// ===========================================
+function showInventoryTab(tabName) {
+    // إخفاء جميع المحتويات
+    document.querySelectorAll('.inventory-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // إظهار المحتوى المحدد
+    document.getElementById(tabName).classList.add('active');
+    
+    // تحديث الأزرار
+    document.querySelectorAll('.inventory-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // تحديث المحتوى حسب التبويب
+    switch(tabName) {
+        case 'overview':
+            updateInventoryReport();
+            break;
+        case 'movements':
+            updateMovementSelects();
+            updateMovementsTable();
+            break;
+        case 'adjustments':
+            updateAdjustmentSelect();
+            break;
+        case 'analysis':
+            break;
     }
 }
 
-function saveProducts() {
-    try {
-        localStorage.setItem('products', JSON.stringify(products));
-    } catch (error) {
-        showNotification('❌ خطأ في حفظ المنتجات', 'error');
-        console.error('Save products error:', error);
+function updateInventoryReport() {
+    const tbody = document.getElementById('inventoryTableBody');
+    if (!tbody) return;
+
+    let totalValue = 0;
+    let totalExpectedProfit = 0;
+    let lowStockCount = 0;
+
+    tbody.innerHTML = products.map(product => {
+        const totalStock = product.fixedStock + product.movableStock;
+        const isLowStock = totalStock <= product.minStock;
+        const inventoryValue = totalStock * product.cost;
+        const expectedProfit = totalStock * (product.price - product.cost);
+        
+        if (isLowStock) lowStockCount++;
+        totalValue += inventoryValue;
+        totalExpectedProfit += expectedProfit;
+        
+        return `
+            <tr>
+                <td>${product.name}</td>
+                <td>${product.fixedStock} ${product.unit}</td>
+                <td>${product.movableStock} ${product.unit}</td>
+                <td><strong>${totalStock} ${product.unit}</strong></td>
+                <td>${product.minStock} ${product.unit}</td>
+                <td>
+                    <span class="product-stock ${isLowStock ? 'low-stock' : ''}">
+                        ${isLowStock ? '⚠️ منخفض' : '✅ طبيعي'}
+                    </span>
+                </td>
+                <td>${formatCurrency(inventoryValue)}</td>
+                <td>${formatCurrency(expectedProfit)}</td>
+                <td>
+                    <button class="btn btn-primary" onclick="quickStockAdjustment(${product.id})" style="padding: 4px 8px; font-size: 11px;">تسوية سريعة</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    // تحديث الإحصائيات
+    document.getElementById('totalProductsCount').textContent = products.length;
+    document.getElementById('lowStockCount').textContent = lowStockCount;
+    document.getElementById('totalInventoryValue').textContent = formatCurrency(totalValue);
+    document.getElementById('expectedProfit').textContent = formatCurrency(totalExpectedProfit);
+}
+
+function updateMovementSelects() {
+    const productSelect = document.getElementById('movementProduct');
+    const adjustmentSelect = document.getElementById('adjustmentProduct');
+    
+    const options = products.map(product => 
+        `<option value="${product.id}">${product.name}</option>`
+    ).join('');
+    
+    if (productSelect) {
+        productSelect.innerHTML = '<option value="">اختر منتج</option>' + options;
+    }
+    
+    if (adjustmentSelect) {
+        adjustmentSelect.innerHTML = '<option value="">اختر منتج</option>' + options;
     }
 }
 
-// ========================================
-// 🔧 وظائف مساعدة إضافية
-// ========================================
+function updateAdjustmentSelect() {
+    updateMovementSelects();
+}
 
-function formatCurrency(amount) {
-    const currency = document.getElementById('currency')?.value || 'IQD';
-    const symbols = { IQD: 'د.ع', USD: '$', EUR: '€' };
-    return `${amount.toLocaleString('ar-IQ')} ${symbols[currency]}`;
+function recordMovement() {
+    const productId = parseInt(document.getElementById('movementProduct').value);
+    const movementType = document.getElementById('movementType').value;
+    const stockType = document.getElementById('stockType').value;
+    const quantity = parseInt(document.getElementById('movementQuantity').value);
+    const reason = document.getElementById('movementReason').value;
+    
+    if (!productId || !quantity || !reason) {
+        showNotification('يرجى ملء جميع الحقول', 'error');
+        return;
+    }
+    
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    // تسجيل الحركة
+    const movement = {
+        id: Date.now(),
+        productId,
+        productName: product.name,
+        type: movementType,
+        stockType,
+        quantity,
+        reason,
+        date: new Date().toISOString()
+    };
+    
+    movements.push(movement);
+    
+    // تحديث المخزون
+    if (movementType === 'in') {
+        if (stockType === 'movable') {
+            product.movableStock += quantity;
+        } else {
+            product.fixedStock += quantity;
+        }
+    } else if (movementType === 'out') {
+        if (stockType === 'movable') {
+            if (product.movableStock >= quantity) {
+                product.movableStock -= quantity;
+            } else {
+                showNotification('الكمية المطلوبة تتجاوز المخزون المتاح', 'error');
+                return;
+            }
+        } else {
+            if (product.fixedStock >= quantity) {
+                product.fixedStock -= quantity;
+            } else {
+                showNotification('الكمية المطلوبة تتجاوز المخزون المتاح', 'error');
+                return;
+            }
+        }
+    }
+    
+    saveData();
+    updateInventoryReport();
+    updateMovementsTable();
+    updateProductsGrid();
+    clearMovementForm();
+    
+    showNotification('تم تسجيل حركة المخزن', 'success');
+}
+
+function clearMovementForm() {
+    document.getElementById('movementProduct').value = '';
+    document.getElementById('movementQuantity').value = '';
+    document.getElementById('movementReason').value = '';
+}
+
+function updateMovementsTable() {
+    const tbody = document.getElementById('movementsTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = movements.slice(-50).reverse().map(movement => {
+        const typeText = {
+            'in': 'إدخال',
+            'out': 'إخراج',
+            'transfer': 'نقل',
+            'adjustment': 'تسوية'
+        };
+        
+        const stockTypeText = {
+            'movable': 'متحرك',
+            'fixed': 'ثابت'
+        };
+        
+        return `
+            <tr>
+                <td>${new Date(movement.date).toLocaleString('ar-EG')}</td>
+                <td>${movement.productName}</td>
+                <td>${typeText[movement.type]}</td>
+                <td>${stockTypeText[movement.stockType]}</td>
+                <td>${movement.quantity}</td>
+                <td>${movement.reason}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function adjustInventory() {
+    const productId = parseInt(document.getElementById('adjustmentProduct').value);
+    const actualMovableStock = parseInt(document.getElementById('actualMovableStock').value);
+    const actualFixedStock = parseInt(document.getElementById('actualFixedStock').value);
+    const notes = document.getElementById('adjustmentNotes').value;
+    
+    if (!productId) {
+        showNotification('يرجى اختيار منتج', 'error');
+        return;
+    }
+    
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    const movableDiff = actualMovableStock - product.movableStock;
+    const fixedDiff = actualFixedStock - product.fixedStock;
+    
+    if (movableDiff !== 0) {
+        const movement = {
+            id: Date.now(),
+            productId,
+            productName: product.name,
+            type: 'adjustment',
+            stockType: 'movable',
+            quantity: Math.abs(movableDiff),
+            reason: `تسوية المخزن المتحرك: ${movableDiff > 0 ? 'زيادة' : 'نقص'} ${Math.abs(movableDiff)} ${product.unit}. ${notes}`,
+            date: new Date().toISOString()
+        };
+        movements.push(movement);
+        product.movableStock = actualMovableStock;
+    }
+    
+    if (fixedDiff !== 0) {
+        const movement = {
+            id: Date.now() + 1,
+            productId,
+            productName: product.name,
+            type: 'adjustment',
+            stockType: 'fixed',
+            quantity: Math.abs(fixedDiff),
+            reason: `تسوية المخزن الثابت: ${fixedDiff > 0 ? 'زيادة' : 'نقص'} ${Math.abs(fixedDiff)} ${product.unit}. ${notes}`,
+            date: new Date().toISOString()
+        };
+        movements.push(movement);
+        product.fixedStock = actualFixedStock;
+    }
+    
+    saveData();
+    updateInventoryReport();
+    updateMovementsTable();
+    updateProductsGrid();
+    clearAdjustmentForm();
+    
+    showNotification('تم تطبيق التسوية', 'success');
+}
+
+function clearAdjustmentForm() {
+    document.getElementById('adjustmentProduct').value = '';
+    document.getElementById('actualMovableStock').value = '';
+    document.getElementById('actualFixedStock').value = '';
+    document.getElementById('adjustmentNotes').value = '';
+}
+
+function quickStockAdjustment(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    showInventoryTab('adjustments');
+    
+    // تعبئة النموذج
+    document.getElementById('adjustmentProduct').value = productId;
+    document.getElementById('actualMovableStock').value = product.movableStock;
+    document.getElementById('actualFixedStock').value = product.fixedStock;
+    
+    // التمرير إلى النموذج
+    document.querySelector('#adjustments').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ===========================================
+// التقارير والإحصائيات
+// ===========================================
+function updateStats() {
+    // إحصائيات المبيعات
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    const todaySales = sales.filter(sale => new Date(sale.date) >= todayStart)
+        .reduce((sum, sale) => sum + sale.total, 0);
+    
+    const monthSales = sales.filter(sale => new Date(sale.date) >= monthStart)
+        .reduce((sum, sale) => sum + sale.total, 0);
+    
+    const totalProfit = sales.reduce((sum, sale) => {
+        return sum + sale.items.reduce((itemSum, item) => {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+                return itemSum + ((item.price - product.cost) * item.quantity);
+            }
+            return itemSum;
+        }, 0);
+    }, 0);
+    
+    const avgDailySales = sales.length > 0 ? 
+        sales.reduce((sum, sale) => sum + sale.total, 0) / 
+        Math.max(1, Math.ceil((Date.now() - new Date(sales[0]?.date || Date.now())) / (1000 * 60 * 60 * 24))) : 0;
+    
+    // تحديث عناصر الإحصائيات
+    updateStatElement('todaySales', formatCurrency(todaySales));
+    updateStatElement('monthSales', formatCurrency(monthSales));
+    updateStatElement('totalProfit', formatCurrency(totalProfit));
+    updateStatElement('avgDailySales', formatCurrency(avgDailySales));
+    
+    // إحصائيات العملاء
+    const activeCustomers = customers.filter(customer => {
+        const customerSales = sales.filter(s => s.customerId === customer.id);
+        const lastSale = customerSales.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        if (!lastSale) return false;
+        const lastSaleDate = new Date(lastSale.date);
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        return lastSaleDate >= thirtyDaysAgo;
+    }).length;
+    
+    const totalCustomerDebt = installmentSales.reduce((sum, installment) => sum + installment.remainingAmount, 0);
+    const avgOrderValue = sales.length > 0 ? sales.reduce((sum, sale) => sum + sale.total, 0) / sales.length : 0;
+    
+    updateStatElement('totalCustomersCount', customers.length);
+    updateStatElement('activeCustomers', activeCustomers);
+    updateStatElement('totalCustomerDebt', formatCurrency(totalCustomerDebt));
+    updateStatElement('avgOrderValue', formatCurrency(avgOrderValue));
+    
+    // إحصائيات الأقساط
+    const totalInstallmentSales = installmentSales.length;
+    const totalInstallmentAmount = installmentSales.reduce((sum, installment) => sum + installment.totalWithInterest, 0);
+    const paidInstallments = installmentSales.reduce((sum, installment) => sum + installment.paidAmount, 0);
+    const pendingInstallments = installmentSales.reduce((sum, installment) => sum + installment.remainingAmount, 0);
+    
+    updateStatElement('totalInstallmentSales', totalInstallmentSales);
+    updateStatElement('totalInstallmentAmount', formatCurrency(totalInstallmentAmount));
+    updateStatElement('paidInstallments', formatCurrency(paidInstallments));
+    updateStatElement('pendingInstallments', formatCurrency(pendingInstallments));
+}
+
+function updateStatElement(id, value) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.textContent = value;
+    }
+}
+
+function generateSalesReport() {
+    const fromDate = document.getElementById('salesReportFrom').value;
+    const toDate = document.getElementById('salesReportTo').value;
+    
+    if (!fromDate || !toDate) {
+        showNotification('يرجى تحديد نطاق التاريخ', 'error');
+        return;
+    }
+    
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    to.setHours(23, 59, 59, 999); // نهاية اليوم
+    
+    const reportSales = sales.filter(sale => {
+        const saleDate = new Date(sale.date);
+        return saleDate >= from && saleDate <= to;
+    });
+    
+    // إنشاء التقرير
+    generateTopProductsReport(reportSales);
+    showNotification(`تم إنشاء تقرير للفترة من ${fromDate} إلى ${toDate}`, 'success');
+}
+
+function generateTopProductsReport(reportSales = sales) {
+    const tbody = document.getElementById('topProductsTableBody');
+    if (!tbody) return;
+    
+    // تجميع المنتجات حسب المبيعات
+    const productStats = {};
+    
+    reportSales.forEach(sale => {
+        sale.items.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (!product) return;
+            
+            if (!productStats[product.id]) {
+                productStats[product.id] = {
+                    name: product.name,
+                    salesCount: 0,
+                    totalQuantity: 0,
+                    totalValue: 0
+                };
+            }
+            
+            productStats[product.id].salesCount++;
+            productStats[product.id].totalQuantity += item.quantity;
+            productStats[product.id].totalValue += item.quantity * item.price;
+        });
+    });
+    
+    // ترتيب المنتجات حسب المبيعات
+    const sortedProducts = Object.values(productStats)
+        .sort((a, b) => b.totalValue - a.totalValue)
+        .slice(0, 10);
+    
+    tbody.innerHTML = sortedProducts.map(product => `
+        <tr>
+            <td>${product.name}</td>
+            <td>${product.salesCount}</td>
+            <td>${product.totalQuantity}</td>
+            <td>${formatCurrency(product.totalValue)}</td>
+        </tr>
+    `).join('');
+}
+
+// ===========================================
+// البحث والفلترة
+// ===========================================
+function setupSearch() {
+    // البحث في المنتجات
+    const productSearch = document.getElementById('productSearch');
+    if (productSearch) {
+        productSearch.addEventListener('input', function() {
+            updateProductsGrid();
+        });
+    }
+    
+    // فلترة المنتجات في جدول الإدارة
+    const productFilter = document.getElementById('productFilter');
+    if (productFilter) {
+        productFilter.addEventListener('input', function() {
+            filterTable('productsTableBody', this.value, [0, 1]); // البحث في الاسم والباركود
+        });
+    }
+    
+    // فلترة العملاء
+    const customerFilter = document.getElementById('customerFilter');
+    if (customerFilter) {
+        customerFilter.addEventListener('input', function() {
+            filterTable('customersTableBody', this.value, [0, 1, 2]); // البحث في الاسم والهاتف والإيميل
+        });
+    }
+    
+    // فلترة الأقساط
+    const installmentFilter = document.getElementById('installmentFilter');
+    if (installmentFilter) {
+        installmentFilter.addEventListener('input', function() {
+            filterTable('installmentsTableBody', this.value, [0]); // البحث في اسم العميل
+        });
+    }
+    
+    // فلاتر البحث المتقدم
+    const priceMin = document.getElementById('priceMin');
+    const priceMax = document.getElementById('priceMax');
+    const lowStockOnly = document.getElementById('lowStockOnly');
+    
+    if (priceMin) priceMin.addEventListener('input', updateProductsGrid);
+    if (priceMax) priceMax.addEventListener('input', updateProductsGrid);
+    if (lowStockOnly) lowStockOnly.addEventListener('change', updateProductsGrid);
+}
+
+function filterTable(tableBodyId, searchTerm, columns) {
+    const tbody = document.getElementById(tableBodyId);
+    if (!tbody) return;
+    
+    const rows = tbody.querySelectorAll('tr');
+    const term = searchTerm.toLowerCase();
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const match = columns.some(colIndex => {
+            return cells[colIndex] && cells[colIndex].textContent.toLowerCase().includes(term);
+        });
+        
+        row.style.display = match ? '' : 'none';
+    });
+}
+
+function sortProducts() {
+    updateProductsGrid();
+}
+
+function filterProducts() {
+    updateProductsGrid();
+}
+
+// ===========================================
+// البحث الصوتي
+// ===========================================
+let recognition = null;
+let isListening = false;
+
+function startVoiceSearch(inputId = 'productSearch') {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        showNotification('البحث الصوتي غير مدعوم في هذا المتصفح', 'error');
+        return;
+    }
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    
+    recognition.lang = 'ar-SA';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    
+    const input = document.getElementById(inputId);
+    const button = document.querySelector(`#${inputId} + .voice-btn`) || 
+                  document.querySelector('.voice-btn');
+    
+    recognition.onstart = function() {
+        isListening = true;
+        if (button) button.classList.add('recording');
+        showNotification('جاري الاستماع...', 'info');
+    };
+    
+    recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        if (input) {
+            input.value = transcript;
+            input.dispatchEvent(new Event('input'));
+        }
+        showNotification(`تم التعرف على: ${transcript}`, 'success');
+    };
+    
+    recognition.onerror = function(event) {
+        showNotification('خطأ في التعرف الصوتي', 'error');
+    };
+    
+    recognition.onend = function() {
+        isListening = false;
+        if (button) button.classList.remove('recording');
+    };
+    
+    recognition.start();
+}
+
+function startVoiceInput(inputId) {
+    startVoiceSearch(inputId);
+}
+
+// ===========================================
+// الطباعة
+// ===========================================
+function printReceipt(sale) {
+    const receiptWindow = window.open('', '_blank');
+    const customer = customers.find(c => c.id === sale.customerId);
+    
+    receiptWindow.document.write(`
+        <html dir="rtl">
+        <head>
+            <title>فاتورة بيع</title>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+                .receipt { max-width: 300px; margin: 0 auto; }
+                .header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
+                .item { display: flex; justify-content: space-between; margin: 5px 0; }
+                .total { border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; font-weight: bold; }
+                @media print { body { margin: 0; } }
+            </style>
+        </head>
+        <body>
+            <div class="receipt">
+                <div class="header">
+                    <h2>${settings.storeName}</h2>
+                    <p>فاتورة بيع نقدي</p>
+                    <p>التاريخ: ${new Date(sale.date).toLocaleString('ar-EG')}</p>
+                    <p>رقم الفاتورة: ${sale.id}</p>
+                    ${customer ? `<p>العميل: ${customer.name}</p>` : ''}
+                </div>
+                
+                <div class="items">
+                    ${sale.items.map(item => {
+                        const product = products.find(p => p.id === item.productId);
+                        const itemTotal = item.quantity * item.price;
+                        return `
+                            <div class="item">
+                                <span>${product ? product.name : 'منتج محذوف'}</span>
+                                <span>${item.quantity} × ${formatCurrency(item.price)} = ${formatCurrency(itemTotal)}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                
+                <div class="total">
+                    <div class="item">
+                        <span>المجموع:</span>
+                        <span>${formatCurrency(sale.total)}</span>
+                    </div>
+                    ${sale.tax > 0 ? `
+                        <div class="item">
+                            <span>الضريبة:</span>
+                            <span>${formatCurrency(sale.tax)}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div style="margin-top: 20px; font-size: 12px;">
+                    <p>شكراً لتسوقكم معنا</p>
+                    <p>${new Date().toLocaleString('ar-EG')}</p>
+                </div>
+            </div>
+            
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(() => window.close(), 1000);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+}
+
+function printInstallmentReceipt(installmentSale) {
+    const receiptWindow = window.open('', '_blank');
+    const customer = customers.find(c => c.id === installmentSale.customerId);
+    
+    receiptWindow.document.write(`
+        <html dir="rtl">
+        <head>
+            <title>فاتورة بيع بالأقساط</title>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+                .receipt { max-width: 400px; margin: 0 auto; }
+                .header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
+                .item { display: flex; justify-content: space-between; margin: 5px 0; }
+                .total { border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; font-weight: bold; }
+                .installment-info { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+                @media print { body { margin: 0; } }
+            </style>
+        </head>
+        <body>
+            <div class="receipt">
+                <div class="header">
+                    <h2>${settings.storeName}</h2>
+                    <p>فاتورة بيع بالأقساط</p>
+                    <p>التاريخ: ${new Date(installmentSale.createdAt).toLocaleString('ar-EG')}</p>
+                    <p>رقم الفاتورة: ${installmentSale.id}</p>
+                    <p>العميل: ${customer ? customer.name : 'غير محدد'}</p>
+                    ${customer && customer.phone ? `<p>الهاتف: ${customer.phone}</p>` : ''}
+                </div>
+                
+                <div class="items">
+                    ${installmentSale.items.map(item => {
+                        const product = products.find(p => p.id === item.productId);
+                        const itemTotal = item.quantity * item.price;
+                        return `
+                            <div class="item">
+                                <span>${product ? product.name : 'منتج محذوف'}</span>
+                                <span>${item.quantity} × ${formatCurrency(item.price)} = ${formatCurrency(itemTotal)}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                
+                <div class="installment-info">
+                    <h3>تفاصيل الأقساط</h3>
+                    <div class="item">
+                        <span>المبلغ الأصلي:</span>
+                        <span>${formatCurrency(installmentSale.originalAmount)}</span>
+                    </div>
+                    <div class="item">
+                        <span>نسبة الفائدة:</span>
+                        <span>${installmentSale.interestRate}%</span>
+                    </div>
+                    <div class="item">
+                        <span>عدد الأقساط:</span>
+                        <span>${installmentSale.installmentCount} شهر</span>
+                    </div>
+                    <div class="item">
+                        <span>المبلغ مع الفائدة:</span>
+                        <span>${formatCurrency(installmentSale.totalWithInterest)}</span>
+                    </div>
+                    <div class="item">
+                        <span>القسط الشهري:</span>
+                        <span>${formatCurrency(installmentSale.monthlyPayment)}</span>
+                    </div>
+                    <div class="item">
+                        <span>تاريخ أول قسط:</span>
+                        <span>${new Date(installmentSale.nextPaymentDate).toLocaleDateString('ar-EG')}</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px; font-size: 12px;">
+                    <p>يرجى الاحتفاظ بهذه الفاتورة</p>
+                    <p>شكراً لثقتكم بنا</p>
+                    <p>${new Date().toLocaleString('ar-EG')}</p>
+                </div>
+            </div>
+            
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(() => window.close(), 1000);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+}
+
+function printPaymentReceipt(installment, payment) {
+    const receiptWindow = window.open('', '_blank');
+    const customer = customers.find(c => c.id === installment.customerId);
+    
+    receiptWindow.document.write(`
+        <html dir="rtl">
+        <head>
+            <title>إيصال دفع قسط</title>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+                .receipt { max-width: 300px; margin: 0 auto; }
+                .header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
+                .item { display: flex; justify-content: space-between; margin: 5px 0; }
+                .total { border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; font-weight: bold; }
+                @media print { body { margin: 0; } }
+            </style>
+        </head>
+        <body>
+            <div class="receipt">
+                <div class="header">
+                    <h2>${settings.storeName}</h2>
+                    <p>إيصال دفع قسط</p>
+                    <p>التاريخ: ${new Date(payment.date).toLocaleString('ar-EG')}</p>
+                    <p>رقم الدفعة: ${payment.id}</p>
+                    <p>العميل: ${customer ? customer.name : 'غير محدد'}</p>
+                </div>
+                
+                <div class="total">
+                    <div class="item">
+                        <span>المبلغ المدفوع:</span>
+                        <span>${formatCurrency(payment.amount)}</span>
+                    </div>
+                    <div class="item">
+                        <span>المبلغ المتبقي:</span>
+                        <span>${formatCurrency(installment.remainingAmount)}</span>
+                    </div>
+                    ${payment.notes ? `
+                        <div style="margin-top: 10px; font-size: 12px;">
+                            <p>ملاحظات: ${payment.notes}</p>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div style="margin-top: 20px; font-size: 12px;">
+                    <p>شكراً لالتزامكم بالدفع</p>
+                    <p>${new Date().toLocaleString('ar-EG')}</p>
+                </div>
+            </div>
+            
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(() => window.close(), 1000);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+}
+
+// ===========================================
+// إدارة النوافذ المنبثقة والواجهة
+// ===========================================
+function showTab(tabName) {
+    // إخفاء جميع المحتويات
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // إظهار المحتوى المحدد
+    document.getElementById(tabName).classList.add('active');
+    
+    // تحديث الأزرار
+    document.querySelectorAll('.tab-btn').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // تحديث المحتوى حسب التبويب
+    switch(tabName) {
+        case 'products':
+            updateProductsTable();
+            break;
+        case 'customers':
+            updateCustomersTable();
+            break;
+        case 'installments':
+            updateInstallmentsTable();
+            break;
+        case 'inventory':
+            updateInventoryReport();
+            break;
+        case 'reports':
+            generateTopProductsReport();
+            break;
+    }
 }
 
 function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'none';
+    document.getElementById(modalId).style.display = 'none';
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+function updateNotificationBadges() {
+    // تحديث شارة عربة التسوق
+    const cartBadge = document.getElementById('cartBadge');
+    const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+    
+    if (cartBadge) {
+        if (cartCount > 0) {
+            cartBadge.textContent = cartCount;
+            cartBadge.style.display = 'flex';
+        } else {
+            cartBadge.style.display = 'none';
+        }
+    }
+    
+    // تحديث شارة المخزون المنخفض
+    const lowStockBadge = document.getElementById('lowStockBadge');
+    const lowStockCount = products.filter(product => 
+        (product.fixedStock + product.movableStock) <= product.minStock
+    ).length;
+    
+    if (lowStockBadge) {
+        if (lowStockCount > 0) {
+            lowStockBadge.textContent = lowStockCount;
+            lowStockBadge.style.display = 'flex';
+        } else {
+            lowStockBadge.style.display = 'none';
+        }
+    }
+    
+    // تحديث شارة الأقساط المتأخرة
+    const overdueBadge = document.getElementById('overdueBadge');
+    const overdueCount = installmentSales.filter(installment => 
+        installment.remainingAmount > 0 && 
+        new Date(installment.nextPaymentDate) < new Date()
+    ).length;
+    
+    if (overdueBadge) {
+        if (overdueCount > 0) {
+            overdueBadge.textContent = overdueCount;
+            overdueBadge.style.display = 'flex';
+        } else {
+            overdueBadge.style.display = 'none';
+        }
     }
 }
 
-// تنظيف عند إغلاق الصفحة
-window.addEventListener('beforeunload', () => {
-    if (clockInterval) {
-        clearInterval(clockInterval);
+// ===========================================
+// إدارة الإعدادات
+// ===========================================
+function loadSettings() {
+    Object.keys(settings).forEach(key => {
+        const element = document.getElementById(key);
+        if (element) {
+            if (element.type === 'checkbox') {
+                element.checked = settings[key];
+            } else {
+                element.value = settings[key];
+            }
+        }
+    });
+}
+
+function saveAllSettings() {
+    const settingsElements = [
+        'storeName', 'currency', 'taxRate', 'audioAlerts',
+        'defaultInterestRate', 'defaultInstallmentCount', 'minInstallmentAmount',
+        'autoPrintPayment', 'lowStockThreshold', 'lowStockAlert',
+        'autoInventoryManagement', 'autoPrintReceipt', 'paperSize'
+    ];
+    
+    settingsElements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (element.type === 'checkbox') {
+                settings[id] = element.checked;
+            } else if (element.type === 'number') {
+                settings[id] = parseFloat(element.value) || 0;
+            } else {
+                settings[id] = element.value;
+            }
+        }
+    });
+    
+    saveData();
+    showNotification('تم حفظ الإعدادات بنجاح', 'success');
+}
+
+// ===========================================
+// النسخ الاحتياطي والاستيراد/التصدير
+// ===========================================
+function createBackup() {
+    const backup = {
+        products,
+        customers,
+        sales,
+        installmentSales,
+        movements,
+        settings,
+        backupDate: new Date().toISOString(),
+        version: '1.0'
+    };
+    
+    const dataStr = JSON.stringify(backup, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    showNotification('تم إنشاء النسخة الاحتياطية', 'success');
+}
+
+function restoreBackup() {
+    const fileInput = document.getElementById('backupFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showNotification('يرجى اختيار ملف النسخة الاحتياطية', 'error');
+        return;
     }
-    if (appStatusInterval) {
-        clearInterval(appStatusInterval);
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const backup = JSON.parse(e.target.result);
+            
+            if (confirm('هذا سيحل محل جميع البيانات الحالية. هل أنت متأكد؟')) {
+                products = backup.products || [];
+                customers = backup.customers || [];
+                sales = backup.sales || [];
+                installmentSales = backup.installmentSales || [];
+                movements = backup.movements || [];
+                settings = { ...defaultSettings, ...backup.settings };
+                
+                saveData();
+                initializeApp();
+                
+                showNotification('تم استعادة البيانات بنجاح', 'success');
+            }
+        } catch (error) {
+            showNotification('خطأ في قراءة ملف النسخة الاحتياطية', 'error');
+        }
+    };
+    
+    reader.readAsText(file);
+}
+
+function exportProducts() {
+    const dataStr = JSON.stringify(products, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `products_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    showNotification('تم تصدير المنتجات', 'success');
+}
+
+function exportAllSales() {
+    const dataStr = JSON.stringify(sales, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `sales_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    showNotification('تم تصدير المبيعات', 'success');
+}
+
+function exportAllCustomers() {
+    const dataStr = JSON.stringify(customers, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `customers_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    showNotification('تم تصدير العملاء', 'success');
+}
+
+function exportFullBackup() {
+    createBackup();
+}
+
+function resetAllData() {
+    if (confirm('هذا سيحذف جميع البيانات نهائياً. هل أنت متأكد؟')) {
+        if (confirm('تأكيد أخير: سيتم حذف جميع البيانات!')) {
+            localStorage.clear();
+            location.reload();
+        }
     }
-    saveDataBeforeClose();
+}
+
+// ===========================================
+// استيراد المنتجات بالكمية
+// ===========================================
+function showBulkImportModal() {
+    document.getElementById('bulkImportModal').style.display = 'block';
+}
+
+function previewImportData() {
+    const fileInput = document.getElementById('bulkImportFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showNotification('يرجى اختيار ملف JSON', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+ // تكملة ملف app.js للنظام من حيث توقف
+
+    reader.onload = function(e) {
+        try {
+            const importData = JSON.parse(e.target.result);
+            
+            if (!Array.isArray(importData)) {
+                showNotification('ملف غير صحيح: يجب أن يحتوي على مصفوفة من المنتجات', 'error');
+                return;
+            }
+            
+            // عرض معاينة البيانات
+            displayImportPreview(importData);
+            
+            // تمكين زر الاستيراد
+            document.getElementById('importBtn').disabled = false;
+            
+        } catch (error) {
+            showNotification('خطأ في قراءة الملف: ' + error.message, 'error');
+        }
+    };
+    
+    reader.readAsText(file);
+}
+
+function displayImportPreview(importData) {
+    const previewDiv = document.getElementById('importPreview');
+    if (!previewDiv) return;
+    
+    const validProducts = [];
+    const invalidProducts = [];
+    
+    // التحقق من صحة البيانات
+    importData.forEach((item, index) => {
+        const errors = [];
+        
+        if (!item.name || typeof item.name !== 'string') {
+            errors.push('اسم المنتج مطلوب');
+        }
+        
+        if (!item.price || typeof item.price !== 'number' || item.price <= 0) {
+            errors.push('سعر صحيح مطلوب');
+        }
+        
+        if (errors.length === 0) {
+            validProducts.push(item);
+        } else {
+            invalidProducts.push({ ...item, index: index + 1, errors });
+        }
+    });
+    
+    let html = `
+        <div class="import-stats">
+            <div class="import-stat">
+                <div class="import-stat-number">${importData.length}</div>
+                <div class="import-stat-label">إجمالي العناصر</div>
+            </div>
+            <div class="import-stat">
+                <div class="import-stat-number">${validProducts.length}</div>
+                <div class="import-stat-label">صحيح</div>
+            </div>
+            <div class="import-stat">
+                <div class="import-stat-number">${invalidProducts.length}</div>
+                <div class="import-stat-label">خطأ</div>
+            </div>
+        </div>
+    `;
+    
+    if (invalidProducts.length > 0) {
+        html += '<div class="import-error"><strong>عناصر بها أخطاء:</strong><br>';
+        invalidProducts.slice(0, 5).forEach(item => {
+            html += `العنصر ${item.index}: ${item.errors.join(', ')}<br>`;
+        });
+        if (invalidProducts.length > 5) {
+            html += `... و ${invalidProducts.length - 5} أخرى`;
+        }
+        html += '</div>';
+    }
+    
+    if (validProducts.length > 0) {
+        html += '<div class="import-success"><strong>معاينة المنتجات الصحيحة:</strong></div>';
+        html += '<div style="max-height: 150px; overflow-y: auto;">';
+        validProducts.slice(0, 10).forEach(product => {
+            html += `
+                <div class="preview-item">
+                    <span class="preview-name">${product.name}</span>
+                    <span class="preview-price">${formatCurrency(product.price)}</span>
+                    <span class="preview-category">${product.category || 'عام'}</span>
+                </div>
+            `;
+        });
+        if (validProducts.length > 10) {
+            html += `<p style="text-align: center; color: #666;">... و ${validProducts.length - 10} منتج آخر</p>`;
+        }
+        html += '</div>';
+    }
+    
+    previewDiv.innerHTML = html;
+}
+
+function processBulkImport() {
+    const fileInput = document.getElementById('bulkImportFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showNotification('يرجى اختيار ملف', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importData = JSON.parse(e.target.result);
+            const targetStoreType = document.getElementById('targetStoreType').value;
+            const replaceExisting = document.getElementById('replaceExisting').checked;
+            const autoGenerateBarcode = document.getElementById('autoGenerateBarcode').checked;
+            const validateCategories = document.getElementById('validateCategories').checked;
+            
+            let importedCount = 0;
+            let skippedCount = 0;
+            let errorCount = 0;
+            
+            importData.forEach(item => {
+                try {
+                    // التحقق من البيانات الأساسية
+                    if (!item.name || !item.price || item.price <= 0) {
+                        errorCount++;
+                        return;
+                    }
+                    
+                    // إنشاء كائن المنتج
+                    const product = {
+                        id: Date.now() + Math.random(),
+                        name: item.name,
+                        barcode: item.barcode || (autoGenerateBarcode ? generateBarcode() : ''),
+                        price: parseFloat(item.price),
+                        cost: parseFloat(item.cost) || 0,
+                        category: validateCategories ? validateCategory(item.category, targetStoreType) : (item.category || 'عام'),
+                        unit: item.unit || 'قطعة',
+                        fixedStock: parseInt(item.fixedStock) || 0,
+                        movableStock: parseInt(item.movableStock) || 0,
+                        minStock: parseInt(item.minStock) || 10,
+                        description: item.description || '',
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    // التحقق من التكرار
+                    const existingIndex = products.findIndex(p => 
+                        p.name === product.name || (p.barcode && product.barcode && p.barcode === product.barcode)
+                    );
+                    
+                    if (existingIndex !== -1) {
+                        if (replaceExisting) {
+                            products[existingIndex] = product;
+                            importedCount++;
+                        } else {
+                            skippedCount++;
+                        }
+                    } else {
+                        products.push(product);
+                        importedCount++;
+                    }
+                    
+                } catch (error) {
+                    errorCount++;
+                }
+            });
+            
+            saveData();
+            updateProductsGrid();
+            updateProductsTable();
+            updateCategoriesList();
+            closeModal('bulkImportModal');
+            
+            showNotification(
+                `تم استيراد ${importedCount} منتج، تم تخطي ${skippedCount}، أخطاء ${errorCount}`, 
+                'success'
+            );
+            
+        } catch (error) {
+            showNotification('خطأ في معالجة الملف: ' + error.message, 'error');
+        }
+    };
+    
+    reader.readAsText(file);
+}
+
+function validateCategory(category, storeType) {
+    const validCategories = storeCategories[storeType] || ['عام'];
+    if (validCategories.includes(category)) {
+        return category;
+    }
+    return validCategories[0]; // الفئة الأولى كافتراضية
+}
+
+function downloadSampleFile() {
+    const sampleData = [
+        {
+            name: "منتج تجريبي 1",
+            barcode: "123456789",
+            price: 10000,
+            cost: 8000,
+            category: "عام",
+            unit: "قطعة",
+            fixedStock: 100,
+            movableStock: 50,
+            minStock: 10,
+            description: "وصف المنتج التجريبي الأول"
+        },
+        {
+            name: "منتج تجريبي 2",
+            barcode: "123456790",
+            price: 15000,
+            cost: 12000,
+            category: "عام",
+            unit: "كيلو",
+            fixedStock: 200,
+            movableStock: 100,
+            minStock: 20,
+            description: "وصف المنتج التجريبي الثاني"
+        }
+    ];
+    
+    const dataStr = JSON.stringify(sampleData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = 'sample_products.json';
+    link.click();
+    
+    showNotification('تم تحميل الملف التجريبي', 'success');
+}
+
+// ===========================================
+// إدارة الباركود
+// ===========================================
+function showBarcodeGenerator() {
+    const modal = document.getElementById('barcodeModal');
+    const productSelect = document.getElementById('barcodeProducts');
+    
+    // تحديث قائمة المنتجات
+    productSelect.innerHTML = products.map(product => 
+        `<option value="${product.id}">${product.name} - ${product.barcode}</option>`
+    ).join('');
+    
+    modal.style.display = 'block';
+}
+
+function generateBarcodePreview() {
+    const selectedProducts = Array.from(document.getElementById('barcodeProducts').selectedOptions)
+        .map(option => parseInt(option.value));
+    
+    const previewDiv = document.getElementById('barcodePreview');
+    
+    let html = '<h4>معاينة الباركود:</h4>';
+    
+    selectedProducts.forEach(productId => {
+        const product = products.find(p => p.id === productId);
+        if (product) {
+            html += `
+                <div class="barcode-print">
+                    <div style="font-size: 14px; font-weight: bold;">${product.name}</div>
+                    <div style="font-size: 12px; margin: 5px 0;">||||| |||| ||| ||||| ||||</div>
+                    <div style="font-size: 12px;">${product.barcode}</div>
+                    <div style="font-size: 12px;">${formatCurrency(product.price)}</div>
+                </div>
+            `;
+        }
+    });
+    
+    previewDiv.innerHTML = html;
+}
+
+function printBarcodes() {
+    const selectedProducts = Array.from(document.getElementById('barcodeProducts').selectedOptions)
+        .map(option => parseInt(option.value));
+    
+    if (selectedProducts.length === 0) {
+        showNotification('يرجى اختيار منتجات للطباعة', 'error');
+        return;
+    }
+    
+    const printWindow = window.open('', '_blank');
+    let html = `
+        <html dir="rtl">
+        <head>
+            <title>طباعة باركود</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 0; }
+                .barcode-container { display: flex; flex-wrap: wrap; }
+                .barcode-item { 
+                    width: 150px; 
+                    height: 100px; 
+                    border: 1px solid #ddd; 
+                    margin: 5px; 
+                    padding: 10px; 
+                    text-align: center; 
+                    font-size: 10px; 
+                    display: flex; 
+                    flex-direction: column; 
+                    justify-content: center;
+                }
+                .product-name { font-weight: bold; margin-bottom: 5px; }
+                .barcode-lines { font-family: monospace; font-size: 8px; margin: 5px 0; }
+                .barcode-number { font-size: 8px; margin: 3px 0; }
+                .price { font-weight: bold; color: #2c5aa0; }
+                @media print { 
+                    body { margin: 0; } 
+                    .barcode-item { break-inside: avoid; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="barcode-container">
+    `;
+    
+    selectedProducts.forEach(productId => {
+        const product = products.find(p => p.id === productId);
+        if (product) {
+            html += `
+                <div class="barcode-item">
+                    <div class="product-name">${product.name}</div>
+                    <div class="barcode-lines">||||| |||| ||| ||||| ||||</div>
+                    <div class="barcode-number">${product.barcode}</div>
+                    <div class="price">${formatCurrency(product.price)}</div>
+                </div>
+            `;
+        }
+    });
+    
+    html += `
+            </div>
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(() => window.close(), 1000);
+                }
+            </script>
+        </body>
+        </html>
+    `;
+    
+    printWindow.document.write(html);
+    closeModal('barcodeModal');
+    showNotification('تم إرسال الباركود للطباعة', 'success');
+}
+
+// ===========================================
+// الإجراءات السريعة المتعددة
+// ===========================================
+function toggleQuickActions() {
+    // يمكن إضافة قائمة إجراءات سريعة هنا
+    showNotification('الإجراءات السريعة', 'info');
+}
+
+function holdSale() {
+    if (cart.length === 0) {
+        showNotification('العربة فارغة', 'error');
+        return;
+    }
+    
+    // حفظ البيع المعلق في التخزين المحلي
+    const heldSales = JSON.parse(localStorage.getItem('heldSales') || '[]');
+    const heldSale = {
+        id: Date.now(),
+        items: [...cart],
+        total: cart.reduce((sum, item) => sum + (item.quantity * item.price), 0),
+        date: new Date().toISOString()
+    };
+    
+    heldSales.push(heldSale);
+    localStorage.setItem('heldSales', JSON.stringify(heldSales));
+    
+    cart = [];
+    updateCartDisplay();
+    updateNotificationBadges();
+    
+    showNotification(`تم تعليق البيع رقم ${heldSale.id}`, 'info');
+}
+
+function showOverdueInstallments() {
+    const overdueInstallments = installmentSales.filter(installment => 
+        installment.remainingAmount > 0 && 
+        new Date(installment.nextPaymentDate) < new Date()
+    );
+    
+    if (overdueInstallments.length === 0) {
+        showNotification('لا توجد أقساط متأخرة', 'info');
+        return;
+    }
+    
+    // يمكن إضافة نافذة منبثقة لعرض الأقساط المتأخرة
+    showNotification(`يوجد ${overdueInstallments.length} قسط متأخر`, 'warning');
+}
+
+function generateInstallmentReport() {
+    // تقرير شامل للأقساط
+    const totalInstallments = installmentSales.length;
+    const totalAmount = installmentSales.reduce((sum, installment) => sum + installment.totalWithInterest, 0);
+    const paidAmount = installmentSales.reduce((sum, installment) => sum + installment.paidAmount, 0);
+    const remainingAmount = installmentSales.reduce((sum, installment) => sum + installment.remainingAmount, 0);
+    
+    const report = {
+        totalInstallments,
+        totalAmount,
+        paidAmount,
+        remainingAmount,
+        collectionRate: totalAmount > 0 ? ((paidAmount / totalAmount) * 100).toFixed(2) : 0
+    };
+    
+    showNotification(`تقرير الأقساط: ${report.totalInstallments} قسط، نسبة التحصيل ${report.collectionRate}%`, 'info');
+}
+
+function generateInventoryAnalysis() {
+    const analysisDiv = document.getElementById('analysisResults');
+    if (!analysisDiv) return;
+    
+    // تحليل المخزون
+    const totalProducts = products.length;
+    const lowStockProducts = products.filter(p => (p.fixedStock + p.movableStock) <= p.minStock);
+    const zeroStockProducts = products.filter(p => (p.fixedStock + p.movableStock) === 0);
+    const highValueProducts = products.filter(p => p.price > 100000);
+    
+    const totalInventoryValue = products.reduce((sum, p) => sum + ((p.fixedStock + p.movableStock) * p.cost), 0);
+    const totalExpectedProfit = products.reduce((sum, p) => sum + ((p.fixedStock + p.movableStock) * (p.price - p.cost)), 0);
+    
+    // تحليل المبيعات
+    const topSellingProducts = getTopSellingProducts(5);
+    
+    analysisDiv.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">${totalProducts}</div>
+                <div class="stat-label">إجمالي المنتجات</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${lowStockProducts.length}</div>
+                <div class="stat-label">منتجات قليلة المخزون</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${zeroStockProducts.length}</div>
+                <div class="stat-label">منتجات نفد مخزونها</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${highValueProducts.length}</div>
+                <div class="stat-label">منتجات عالية القيمة</div>
+            </div>
+        </div>
+        
+        <div class="form-grid">
+            <div class="card">
+                <h3>📊 تحليل مالي</h3>
+                <p><strong>قيمة المخزون:</strong> ${formatCurrency(totalInventoryValue)}</p>
+                <p><strong>الربح المتوقع:</strong> ${formatCurrency(totalExpectedProfit)}</p>
+                <p><strong>نسبة الربح:</strong> ${totalInventoryValue > 0 ? ((totalExpectedProfit / totalInventoryValue) * 100).toFixed(2) : 0}%</p>
+            </div>
+            
+            <div class="card">
+                <h3>🏆 أفضل المنتجات مبيعاً</h3>
+                ${topSellingProducts.map((product, index) => `
+                    <p>${index + 1}. ${product.name} - ${product.totalSales} مبيعة</p>
+                `).join('')}
+            </div>
+        </div>
+        
+        ${lowStockProducts.length > 0 ? `
+            <div class="card">
+                <h3>⚠️ منتجات تحتاج إعادة تزويد</h3>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>المنتج</th><th>المخزون الحالي</th><th>الحد الأدنى</th><th>الكمية المطلوبة</th></tr>
+                        </thead>
+                        <tbody>
+                            ${lowStockProducts.map(product => {
+                                const currentStock = product.fixedStock + product.movableStock;
+                                const neededStock = Math.max(0, product.minStock - currentStock + 50);
+                                return `
+                                    <tr>
+                                        <td>${product.name}</td>
+                                        <td class="low-stock">${currentStock} ${product.unit}</td>
+                                        <td>${product.minStock} ${product.unit}</td>
+                                        <td><strong>${neededStock} ${product.unit}</strong></td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        ` : ''}
+    `;
+}
+
+function getTopSellingProducts(limit = 5) {
+    const productSalesMap = {};
+    
+    sales.forEach(sale => {
+        sale.items.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+                if (!productSalesMap[product.id]) {
+                    productSalesMap[product.id] = {
+                        id: product.id,
+                        name: product.name,
+                        totalSales: 0,
+                        totalQuantity: 0
+                    };
+                }
+                productSalesMap[product.id].totalSales++;
+                productSalesMap[product.id].totalQuantity += item.quantity;
+            }
+        });
+    });
+    
+    return Object.values(productSalesMap)
+        .sort((a, b) => b.totalSales - a.totalSales)
+        .slice(0, limit);
+}
+
+// ===========================================
+// الوظائف المساعدة
+// ===========================================
+function formatCurrency(amount) {
+    const currencySymbols = {
+        'IQD': 'د.ع',
+        'USD': '$',
+        'EUR': '€'
+    };
+    
+    const symbol = currencySymbols[settings.currency] || 'د.ع';
+    return `${amount.toLocaleString('ar-EG')} ${symbol}`;
+}
+
+function saveData() {
+    localStorage.setItem('products', JSON.stringify(products));
+    localStorage.setItem('customers', JSON.stringify(customers));
+    localStorage.setItem('sales', JSON.stringify(sales));
+    localStorage.setItem('installmentSales', JSON.stringify(installmentSales));
+    localStorage.setItem('movements', JSON.stringify(movements));
+    localStorage.setItem('settings', JSON.stringify(settings));
+}
+
+function playNotificationSound() {
+    if (!settings.audioAlerts) return;
+    
+    // إنشاء صوت تنبيه بسيط
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+function playSuccessSound() {
+    if (!settings.audioAlerts) return;
+    
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.1);
+    oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.2);
+    
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
+}
+
+// ===========================================
+// إدارة النوافذ (للتطبيق المكتبي)
+// ===========================================
+function minimizeWindow() {
+    // يعمل فقط في بيئة Electron
+    if (window.electronAPI) {
+        window.electronAPI.minimize();
+    } else {
+        showNotification('وظيفة التصغير متاحة فقط في التطبيق المكتبي', 'info');
+    }
+}
+
+function toggleMaximize() {
+    // يعمل فقط في بيئة Electron
+    if (window.electronAPI) {
+        window.electronAPI.toggleMaximize();
+    } else {
+        showNotification('وظيفة التكبير متاحة فقط في التطبيق المكتبي', 'info');
+    }
+}
+
+function closeWindow() {
+    // يعمل فقط في بيئة Electron
+    if (window.electronAPI) {
+        if (confirm('هل تريد إغلاق التطبيق؟')) {
+            window.electronAPI.close();
+        }
+    } else {
+        if (confirm('هل تريد إغلاق التطبيق؟')) {
+            window.close();
+        }
+    }
+}
+
+// ===========================================
+// معالج الأخطاء العام
+// ===========================================
+window.addEventListener('error', function(e) {
+    console.error('خطأ في التطبيق:', e.error);
+    showNotification('حدث خطأ غير متوقع. يرجى تحديث الصفحة.', 'error');
 });
 
+// ===========================================
+// تنظيف البيانات عند إغلاق التطبيق
+// ===========================================
+window.addEventListener('beforeunload', function(e) {
+    // حفظ البيانات قبل الإغلاق
+    saveData();
+});
+
+// ===========================================
+// دوال إضافية للتحسين
+// ===========================================
+function scheduleBackup() {
+    showNotification('جدولة النسخ الاحتياطي (قيد التطوير)', 'info');
+}
+
+function importFromFile() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showNotification('يرجى اختيار ملف', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            // يمكن إضافة المزيد من أنواع الاستيراد هنا
+            if (data.products) {
+                if (confirm('استيراد المنتجات؟')) {
+                    products = [...products, ...data.products];
+                    saveData();
+                    updateProductsGrid();
+                    updateProductsTable();
+                }
+            }
+            
+            if (data.customers) {
+                if (confirm('استيراد العملاء؟')) {
+                    customers = [...customers, ...data.customers];
+                    saveData();
+                    updateCustomersTable();
+                }
+            }
+            
+            showNotification('تم الاستيراد بنجاح', 'success');
+            
+        } catch (error) {
+            showNotification('خطأ في قراءة الملف', 'error');
+        }
+    };
+    
+    reader.readAsText(file);
+}
+
+function exportSalesReport() {
+    const fromDate = document.getElementById('salesReportFrom').value;
+    const toDate = document.getElementById('salesReportTo').value;
+    
+    if (!fromDate || !toDate) {
+        showNotification('يرجى تحديد نطاق التاريخ', 'error');
+        return;
+    }
+    
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    to.setHours(23, 59, 59, 999);
+    
+    const reportSales = sales.filter(sale => {
+        const saleDate = new Date(sale.date);
+        return saleDate >= from && saleDate <= to;
+    });
+    
+    const reportData = {
+        period: { from: fromDate, to: toDate },
+        sales: reportSales,
+        summary: {
+            totalSales: reportSales.length,
+            totalAmount: reportSales.reduce((sum, sale) => sum + sale.total, 0),
+            averageOrder: reportSales.length > 0 ? reportSales.reduce((sum, sale) => sum + sale.total, 0) / reportSales.length : 0
+        }
+    };
+    
+    const dataStr = JSON.stringify(reportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `sales_report_${fromDate}_to_${toDate}.json`;
+    link.click();
+    
+    showNotification('تم تصدير تقرير المبيعات', 'success');
+}
+
+// إضافة مستمع للتخزين المحلي لمراقبة التغييرات
+window.addEventListener('storage', function(e) {
+    if (e.key && e.key.startsWith('products') || e.key.startsWith('customers')) {
+        // تحديث البيانات إذا تم تغييرها من نافذة أخرى
+        location.reload();
+    }
+});
+
+// دالة لتنظيف البيانات القديمة
+function cleanupOldData() {
+    // تنظيف المبيعات القديمة (أكثر من سنة)
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    
+    const oldSalesCount = sales.filter(sale => new Date(sale.date) < oneYearAgo).length;
+    
+    if (oldSalesCount > 0) {
+        if (confirm(`يوجد ${oldSalesCount} مبيعة قديمة (أكثر من سنة). هل تريد أرشفتها؟`)) {
+            const oldSales = sales.filter(sale => new Date(sale.date) < oneYearAgo);
+            sales = sales.filter(sale => new Date(sale.date) >= oneYearAgo);
+            
+            // حفظ المبيعات القديمة في ملف منفصل
+            const dataStr = JSON.stringify(oldSales, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `archived_sales_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            saveData();
+            showNotification(`تم أرشفة ${oldSalesCount} مبيعة قديمة`, 'success');
+        }
+    }
+}
+
+// تشغيل تنظيف البيانات عند البدء (مرة واحدة كل شهر)
+const lastCleanup = localStorage.getItem('lastCleanup');
+const now = new Date();
+const monthAgo = new Date();
+monthAgo.setMonth(monthAgo.getMonth() - 1);
+
+if (!lastCleanup || new Date(lastCleanup) < monthAgo) {
+    setTimeout(() => {
+        cleanupOldData();
+        localStorage.setItem('lastCleanup', now.toISOString());
+    }, 5000); // تأخير 5 ثوان للسماح بتحميل التطبيق
+}
+
+console.log('نظام الكاشير المتكامل جاهز للاستخدام! 🏪');
+console.log('تم تحميل جميع الوظائف بنجاح ✅');
+
+
+// ملف import-export.js - وظائف الاستيراد والتصدير المتقدمة
+
+// ===========================================
+// تصدير البيانات بصيغ متعددة
+// ===========================================
+
+function exportToCSV(data, filename, headers) {
+    if (!data || data.length === 0) {
+        showNotification('لا توجد بيانات للتصدير', 'error');
+        return;
+    }
+    
+    let csvContent = '';
+    
+    // إضافة العناوين
+    if (headers) {
+        csvContent += headers.join(',') + '\n';
+    }
+    
+    // إضافة البيانات
+    data.forEach(row => {
+        const values = Object.values(row).map(value => {
+            // تنظيف البيانات وإضافة علامات التنصيص إذا احتوت على فواصل
+            if (typeof value === 'string' && (value.includes(',') || value.includes('\n'))) {
+                return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+        });
+        csvContent += values.join(',') + '\n';
+    });
+    
+    // تحويل إلى UTF-8 مع BOM للدعم العربي
+    const BOM = '\uFEFF';
+    const csvBlob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(csvBlob);
+    link.download = filename;
+    link.click();
+    
+    showNotification(`تم تصدير ${data.length} عنصر إلى ملف CSV`, 'success');
+}
+
+function exportToExcel(data, filename, sheetName = 'البيانات') {
+    // تصدير بسيط لـ Excel باستخدام HTML table
+    if (!data || data.length === 0) {
+        showNotification('لا توجد بيانات للتصدير', 'error');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    
+    let excelContent = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+              xmlns:x="urn:schemas-microsoft-com:office:excel" 
+              xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+            <meta charset="UTF-8">
+            <!--[if gte mso 9]>
+            <xml>
+                <x:ExcelWorkbook>
+                    <x:ExcelWorksheets>
+                        <x:ExcelWorksheet>
+                            <x:Name>${sheetName}</x:Name>
+                            <x:WorksheetOptions>
+                                <x:DisplayGridlines/>
+                            </x:WorksheetOptions>
+                        </x:ExcelWorksheet>
+                    </x:ExcelWorksheets>
+                </x:ExcelWorkbook>
+            </xml>
+            <![endif]-->
+            <style>
+                table { border-collapse: collapse; width: 100%; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+                th { background-color: #f2f2f2; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <table>
+                <thead>
+                    <tr>
+    `;
+    
+    headers.forEach(header => {
+        excelContent += `<th>${header}</th>`;
+    });
+    
+    excelContent += `
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    data.forEach(row => {
+        excelContent += '<tr>';
+        headers.forEach(header => {
+            excelContent += `<td>${row[header] || ''}</td>`;
+        });
+        excelContent += '</tr>';
+    });
+    
+    excelContent += `
+                </tbody>
+            </table>
+        </body>
+        </html>
+    `;
+    
+    const excelBlob = new Blob(['\ufeff', excelContent], {
+        type: 'application/vnd.ms-excel;charset=utf-8;'
+    });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(excelBlob);
+    link.download = filename;
+    link.click();
+    
+    showNotification(`تم تصدير ${data.length} عنصر إلى ملف Excel`, 'success');
+}
+
+// ===========================================
+// تصدير المنتجات المحسن
+// ===========================================
+function exportProductsAdvanced() {
+    const exportFormat = prompt('اختر صيغة التصدير:\n1 - JSON\n2 - CSV\n3 - Excel', '1');
+    
+    if (!exportFormat || !['1', '2', '3'].includes(exportFormat)) {
+        return;
+    }
+    
+    // إعداد البيانات للتصدير
+    const exportData = products.map(product => ({
+        'الاسم': product.name,
+        'الباركود': product.barcode,
+        'السعر': product.price,
+        'التكلفة': product.cost,
+        'الربح': product.price - product.cost,
+        'التصنيف': product.category,
+        'الوحدة': product.unit,
+        'مخزن ثابت': product.fixedStock,
+        'مخزن متحرك': product.movableStock,
+        'إجمالي المخزون': product.fixedStock + product.movableStock,
+        'الحد الأدنى': product.minStock,
+        'الوصف': product.description,
+        'تاريخ الإضافة': new Date(product.createdAt).toLocaleDateString('ar-EG')
+    }));
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    
+    switch (exportFormat) {
+        case '1': // JSON
+            const jsonStr = JSON.stringify(exportData, null, 2);
+            const jsonBlob = new Blob([jsonStr], { type: 'application/json' });
+            
+            const jsonLink = document.createElement('a');
+            jsonLink.href = URL.createObjectURL(jsonBlob);
+            jsonLink.download = `products_${timestamp}.json`;
+            jsonLink.click();
+            break;
+            
+        case '2': // CSV
+            exportToCSV(exportData, `products_${timestamp}.csv`);
+            break;
+            
+        case '3': // Excel
+            exportToExcel(exportData, `products_${timestamp}.xls`, 'المنتجات');
+            break;
+    }
+}
+
+// ===========================================
+// تصدير العملاء المحسن
+// ===========================================
+function exportCustomersAdvanced() {
+    const exportFormat = prompt('اختر صيغة التصدير:\n1 - JSON\n2 - CSV\n3 - Excel', '1');
+    
+    if (!exportFormat || !['1', '2', '3'].includes(exportFormat)) {
+        return;
+    }
+    
+    // حساب إحصائيات العملاء
+    const exportData = customers.map(customer => {
+        const customerSales = sales.filter(s => s.customerId === customer.id);
+        const totalPurchases = customerSales.reduce((sum, sale) => sum + sale.total, 0);
+        const customerInstallments = installmentSales.filter(is => is.customerId === customer.id);
+        const totalDebt = customerInstallments.reduce((sum, installment) => sum + installment.remainingAmount, 0);
+        const lastSale = customerSales.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        
+        return {
+            'الاسم': customer.name,
+            'الهاتف': customer.phone,
+            'البريد الإلكتروني': customer.email,
+            'العنوان': customer.address,
+            'حد الائتمان': customer.creditLimit,
+            'إجمالي المشتريات': totalPurchases,
+            'الرصيد المستحق': totalDebt,
+            'عدد الطلبات': customerSales.length,
+            'آخر شراء': lastSale ? new Date(lastSale.date).toLocaleDateString('ar-EG') : 'لا يوجد',
+            'الملاحظات': customer.notes,
+            'تاريخ التسجيل': new Date(customer.createdAt).toLocaleDateString('ar-EG')
+        };
+    });
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    
+    switch (exportFormat) {
+        case '1': // JSON
+            const jsonStr = JSON.stringify(exportData, null, 2);
+            const jsonBlob = new Blob([jsonStr], { type: 'application/json' });
+            
+            const jsonLink = document.createElement('a');
+            jsonLink.href = URL.createObjectURL(jsonBlob);
+            jsonLink.download = `customers_${timestamp}.json`;
+            jsonLink.click();
+            break;
+            
+        case '2': // CSV
+            exportToCSV(exportData, `customers_${timestamp}.csv`);
+            break;
+            
+        case '3': // Excel
+            exportToExcel(exportData, `customers_${timestamp}.xls`, 'العملاء');
+            break;
+    }
+}
+
+// ===========================================
+// تصدير المبيعات المحسن
+// ===========================================
+function exportSalesAdvanced() {
+    const fromDate = prompt('من تاريخ (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    const toDate = prompt('إلى تاريخ (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    
+    if (!fromDate || !toDate) {
+        return;
+    }
+    
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    to.setHours(23, 59, 59, 999);
+    
+    const filteredSales = sales.filter(sale => {
+        const saleDate = new Date(sale.date);
+        return saleDate >= from && saleDate <= to;
+    });
+    
+    if (filteredSales.length === 0) {
+        showNotification('لا توجد مبيعات في الفترة المحددة', 'error');
+        return;
+    }
+    
+    const exportFormat = prompt('اختر صيغة التصدير:\n1 - JSON\n2 - CSV\n3 - Excel', '1');
+    
+    if (!exportFormat || !['1', '2', '3'].includes(exportFormat)) {
+        return;
+    }
+    
+    // إعداد البيانات للتصدير
+    const exportData = [];
+    
+    filteredSales.forEach(sale => {
+        const customer = customers.find(c => c.id === sale.customerId);
+        const customerName = customer ? customer.name : 'عميل نقدي';
+        
+        sale.items.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            const productName = product ? product.name : 'منتج محذوف';
+            const profit = product ? (item.price - product.cost) * item.quantity : 0;
+            
+            exportData.push({
+                'رقم الفاتورة': sale.id,
+                'التاريخ': new Date(sale.date).toLocaleDateString('ar-EG'),
+                'الوقت': new Date(sale.date).toLocaleTimeString('ar-EG'),
+                'العميل': customerName,
+                'المنتج': productName,
+                'الكمية': item.quantity,
+                'سعر الوحدة': item.price,
+                'إجمالي السطر': item.quantity * item.price,
+                'الربح': profit,
+                'نوع البيع': sale.type === 'cash' ? 'نقدي' : 'أقساط'
+            });
+        });
+    });
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `sales_${fromDate}_to_${toDate}`;
+    
+    switch (exportFormat) {
+        case '1': // JSON
+            const jsonStr = JSON.stringify(exportData, null, 2);
+            const jsonBlob = new Blob([jsonStr], { type: 'application/json' });
+            
+            const jsonLink = document.createElement('a');
+            jsonLink.href = URL.createObjectURL(jsonBlob);
+            jsonLink.download = `${filename}.json`;
+            jsonLink.click();
+            break;
+            
+        case '2': // CSV
+            exportToCSV(exportData, `${filename}.csv`);
+            break;
+            
+        case '3': // Excel
+            exportToExcel(exportData, `${filename}.xls`, 'المبيعات');
+            break;
+    }
+}
+
+// ===========================================
+// استيراد منتجات من CSV
+// ===========================================
+function importProductsFromCSV() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const csv = e.target.result;
+            const lines = csv.split('\n');
+            
+            if (lines.length < 2) {
+                showNotification('ملف CSV فارغ أو غير صحيح', 'error');
+                return;
+            }
+            
+            // قراءة العناوين
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            
+            // التحقق من وجود الحقول المطلوبة
+            const requiredFields = ['الاسم', 'السعر'];
+            const missingFields = requiredFields.filter(field => !headers.includes(field));
+            
+            if (missingFields.length > 0) {
+                showNotification(`حقول مطلوبة مفقودة: ${missingFields.join(', ')}`, 'error');
+                return;
+            }
+            
+            let importedCount = 0;
+            let errorCount = 0;
+            
+            // معالجة كل صف
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                try {
+                    const values = parseCSVLine(line);
+                    const productData = {};
+                    
+                    headers.forEach((header, index) => {
+                        productData[header] = values[index] || '';
+                    });
+                    
+                    // تحويل البيانات إلى تنسيق المنتج
+                    const product = {
+                        id: Date.now() + Math.random(),
+                        name: productData['الاسم'] || '',
+                        barcode: productData['الباركود'] || generateBarcode(),
+                        price: parseFloat(productData['السعر']) || 0,
+                        cost: parseFloat(productData['التكلفة']) || 0,
+                        category: productData['التصنيف'] || 'عام',
+                        unit: productData['الوحدة'] || 'قطعة',
+                        fixedStock: parseInt(productData['مخزن ثابت']) || 0,
+                        movableStock: parseInt(productData['مخزن متحرك']) || 0,
+                        minStock: parseInt(productData['الحد الأدنى']) || 10,
+                        description: productData['الوصف'] || '',
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    // التحقق من صحة البيانات
+                    if (product.name && product.price > 0) {
+                        // التحقق من عدم التكرار
+                        const existingProduct = products.find(p => 
+                            p.name === product.name || 
+                            (p.barcode && product.barcode && p.barcode === product.barcode)
+                        );
+                        
+                        if (!existingProduct) {
+                            products.push(product);
+                            importedCount++;
+                        }
+                    } else {
+                        errorCount++;
+                    }
+                    
+                } catch (error) {
+                    errorCount++;
+                }
+            }
+            
+            saveData();
+            updateProductsGrid();
+            updateProductsTable();
+            
+            showNotification(
+                `تم استيراد ${importedCount} منتج بنجاح، ${errorCount} منتج بها أخطاء`, 
+                importedCount > 0 ? 'success' : 'warning'
+            );
+        };
+        
+        reader.readAsText(file, 'UTF-8');
+    };
+    
+    input.click();
+}
+
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    
+    result.push(current.trim());
+    return result;
+}
+
+// ===========================================
+// استيراد عملاء من CSV
+// ===========================================
+function importCustomersFromCSV() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const csv = e.target.result;
+            const lines = csv.split('\n');
+            
+            if (lines.length < 2) {
+                showNotification('ملف CSV فارغ أو غير صحيح', 'error');
+                return;
+            }
+            
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            
+            // التحقق من وجود الحقول المطلوبة
+            if (!headers.includes('الاسم')) {
+                showNotification('حقل "الاسم" مطلوب', 'error');
+                return;
+            }
+            
+            let importedCount = 0;
+            let errorCount = 0;
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                try {
+                    const values = parseCSVLine(line);
+                    const customerData = {};
+                    
+                    headers.forEach((header, index) => {
+                        customerData[header] = values[index] || '';
+                    });
+                    
+                    const customer = {
+                        id: Date.now() + Math.random(),
+                        name: customerData['الاسم'] || '',
+                        phone: customerData['الهاتف'] || '',
+                        email: customerData['البريد الإلكتروني'] || '',
+                        address: customerData['العنوان'] || '',
+                        creditLimit: parseFloat(customerData['حد الائتمان']) || 0,
+                        notes: customerData['الملاحظات'] || '',
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    if (customer.name) {
+                        // التحقق من عدم التكرار
+                        const existingCustomer = customers.find(c => 
+                            c.name === customer.name || 
+                            (c.phone && customer.phone && c.phone === customer.phone)
+                        );
+                        
+                        if (!existingCustomer) {
+                            customers.push(customer);
+                            importedCount++;
+                        }
+                    } else {
+                        errorCount++;
+                    }
+                    
+                } catch (error) {
+                    errorCount++;
+                }
+            }
+            
+            saveData();
+            updateCustomersTable();
+            
+            showNotification(
+                `تم استيراد ${importedCount} عميل بنجاح، ${errorCount} عميل بها أخطاء`, 
+                importedCount > 0 ? 'success' : 'warning'
+            );
+        };
+        
+        reader.readAsText(file, 'UTF-8');
+    };
+    
+    input.click();
+}
+
+// ===========================================
+// تصدير تقارير شاملة
+// ===========================================
+function exportComprehensiveReport() {
+    const reportData = {
+        تاريخ_التقرير: new Date().toLocaleDateString('ar-EG'),
+        معلومات_عامة: {
+            اسم_المتجر: settings.storeName,
+            عدد_المنتجات: products.length,
+            عدد_العملاء: customers.length,
+            عدد_المبيعات: sales.length,
+            عدد_الأقساط: installmentSales.length
+        },
+        إحصائيات_المبيعات: calculateSalesStatistics(),
+        إحصائيات_المخزون: calculateInventoryStatistics(),
+        إحصائيات_العملاء: calculateCustomerStatistics(),
+        إحصائيات_الأقساط: calculateInstallmentStatistics(),
+        أفضل_المنتجات: getTopSellingProducts(10),
+        أفضل_العملاء: getTopCustomers(10),
+        تحليل_الأرباح: calculateProfitAnalysis()
+    };
+    
+    const jsonStr = JSON.stringify(reportData, null, 2);
+    const jsonBlob = new Blob([jsonStr], { type: 'application/json' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(jsonBlob);
+    link.download = `comprehensive_report_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    showNotification('تم تصدير التقرير الشامل', 'success');
+}
+
+function calculateSalesStatistics() {
+    const today = new Date();
+    const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const thisYear = new Date(today.getFullYear(), 0, 1);
+    
+    const todaySales = sales.filter(s => new Date(s.date) >= new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+    const monthSales = sales.filter(s => new Date(s.date) >= thisMonth);
+    const yearSales = sales.filter(s => new Date(s.date) >= thisYear);
+    
+    return {
+        مبيعات_اليوم: {
+            عدد_الفواتير: todaySales.length,
+            إجمالي_المبلغ: todaySales.reduce((sum, sale) => sum + sale.total, 0)
+        },
+        مبيعات_الشهر: {
+            عدد_الفواتير: monthSales.length,
+            إجمالي_المبلغ: monthSales.reduce((sum, sale) => sum + sale.total, 0)
+        },
+        مبيعات_السنة: {
+            عدد_الفواتير: yearSales.length,
+            إجمالي_المبلغ: yearSales.reduce((sum, sale) => sum + sale.total, 0)
+        },
+        متوسط_قيمة_الفاتورة: sales.length > 0 ? sales.reduce((sum, sale) => sum + sale.total, 0) / sales.length : 0
+    };
+}
+
+function calculateInventoryStatistics() {
+    const totalValue = products.reduce((sum, p) => sum + ((p.fixedStock + p.movableStock) * p.cost), 0);
+    const expectedProfit = products.reduce((sum, p) => sum + ((p.fixedStock + p.movableStock) * (p.price - p.cost)), 0);
+    const lowStockProducts = products.filter(p => (p.fixedStock + p.movableStock) <= p.minStock);
+    const zeroStockProducts = products.filter(p => (p.fixedStock + p.movableStock) === 0);
+    
+    return {
+        قيمة_المخزون_الإجمالية: totalValue,
+        الربح_المتوقع: expectedProfit,
+        نسبة_الربح: totalValue > 0 ? ((expectedProfit / totalValue) * 100) : 0,
+        منتجات_قليلة_المخزون: lowStockProducts.length,
+        منتجات_نفد_مخزونها: zeroStockProducts.length,
+        متوسط_قيمة_المنتج: products.length > 0 ? totalValue / products.length : 0
+    };
+}
+
+function calculateCustomerStatistics() {
+    const totalDebt = installmentSales.reduce((sum, installment) => sum + installment.remainingAmount, 0);
+    const activeCustomers = customers.filter(customer => {
+        const customerSales = sales.filter(s => s.customerId === customer.id);
+        const lastSale = customerSales.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        if (!lastSale) return false;
+        const lastSaleDate = new Date(lastSale.date);
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        return lastSaleDate >= thirtyDaysAgo;
+    });
+    
+    return {
+        إجمالي_العملاء: customers.length,
+        عملاء_نشطون: activeCustomers.length,
+        إجمالي_الديون: totalDebt,
+        متوسط_الدين_لكل_عميل: customers.length > 0 ? totalDebt / customers.length : 0
+    };
+}
+
+function calculateInstallmentStatistics() {
+    const totalAmount = installmentSales.reduce((sum, installment) => sum + installment.totalWithInterest, 0);
+    const paidAmount = installmentSales.reduce((sum, installment) => sum + installment.paidAmount, 0);
+    const overdueInstallments = installmentSales.filter(installment => 
+        installment.remainingAmount > 0 && new Date(installment.nextPaymentDate) < new Date()
+    );
+    
+    return {
+        إجمالي_الأقساط: installmentSales.length,
+        إجمالي_المبلغ: totalAmount,
+        المبلغ_المدفوع: paidAmount,
+        المبلغ_المتبقي: totalAmount - paidAmount,
+        نسبة_التحصيل: totalAmount > 0 ? ((paidAmount / totalAmount) * 100) : 0,
+        أقساط_متأخرة: overdueInstallments.length
+    };
+}
+
+function getTopCustomers(limit = 10) {
+    const customerStats = customers.map(customer => {
+        const customerSales = sales.filter(s => s.customerId === customer.id);
+        const totalPurchases = customerSales.reduce((sum, sale) => sum + sale.total, 0);
+        
+        return {
+            الاسم: customer.name,
+            إجمالي_المشتريات: totalPurchases,
+            عدد_الطلبات: customerSales.length
+        };
+    });
+    
+    return customerStats
+        .sort((a, b) => b.إجمالي_المشتريات - a.إجمالي_المشتريات)
+        .slice(0, limit);
+}
+
+function calculateProfitAnalysis() {
+    const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
+    const totalCost = sales.reduce((sum, sale) => {
+        return sum + sale.items.reduce((itemSum, item) => {
+            const product = products.find(p => p.id === item.productId);
+            return itemSum + (product ? product.cost * item.quantity : 0);
+        }, 0);
+    }, 0);
+    
+    const totalProfit = totalRevenue - totalCost;
+    const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0;
+    
+    return {
+        إجمالي_الإيرادات: totalRevenue,
+        إجمالي_التكلفة: totalCost,
+        إجمالي_الربح: totalProfit,
+        هامش_الربح: profitMargin
+    };
+}
+
+// ===========================================
+// مساعدات إضافية
+// ===========================================
+
+// ربط الوظائف الجديدة بالأزرار الموجودة
+document.addEventListener('DOMContentLoaded', function() {
+    // استبدال وظائف التصدير القديمة بالجديدة
+    if (window.exportProducts) {
+        window.exportProducts = exportProductsAdvanced;
+    }
+    if (window.exportCustomers) {
+        window.exportCustomers = exportCustomersAdvanced;
+    }
+    if (window.exportSalesReport) {
+        window.exportSalesReport = exportSalesAdvanced;
+    }
+});
+
+// إضافة أزرار استيراد CSV في الواجهة
+function addImportButtons() {
+    // يمكن إضافة أزرار في الواجهة لاستيراد CSV
+    console.log('وظائف الاستيراد والتصدير المتقدمة جاهزة');
+}
+
 // تصدير الوظائف للاستخدام العام
-window.minimizeWindow = null; // سيتم تعيينها في setupWindowControls
-window.toggleMaximize = null; // سيتم تعيينها في setupWindowControls
-window.closeWindow = null; // سيتم تعيينها في setupWindowControls
-window.showClockSettings = showClockSettings;
-window.updateClockSettings = updateClockSettings;
-window.resetClockSettings = resetClockSettings;
-window.saveClockSettings = saveClockSettings;
-window.testWindowControls = testWindowControls;
-window.runSystemDiagnostics = runSystemDiagnostics;
+window.exportProductsAdvanced = exportProductsAdvanced;
+window.exportCustomersAdvanced = exportCustomersAdvanced;
+window.exportSalesAdvanced = exportSalesAdvanced;
+window.importProductsFromCSV = importProductsFromCSV;
+window.importCustomersFromCSV = importCustomersFromCSV;
+window.exportComprehensiveReport = exportComprehensiveReport;
 
-// متغيرات عامة للتشخيص
-window.systemDiagnostics = systemDiagnostics;
-window.isElectronApp = isElectronApp;
-window.windowControlsInitialized = windowControlsInitialized;
-
-console.log('✅ تم تحميل نظام الكاشير المحسن مع التحكم الكامل في النافذة');
-console.log('🔧 للتشخيص استخدم: testWindowControls() أو runSystemDiagnostics()');
-console.log('⌨️ اختصارات: Alt+F4 (إغلاق), F11 (تكبير), Ctrl+M (تصغير), Ctrl+Shift+I (اختبار)');
+console.log('تم تحميل وظائف الاستيراد والتصدير المتقدمة ✅');
