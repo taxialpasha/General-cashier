@@ -3625,3 +3625,582 @@ window.importCustomersFromCSV = importCustomersFromCSV;
 window.exportComprehensiveReport = exportComprehensiveReport;
 
 console.log('تم تحميل وظائف الاستيراد والتصدير المتقدمة ✅');
+
+
+// ===============================================
+// وحدة التحكم في الشريط العلوي المخصص
+// Custom Titlebar Controller
+// ===============================================
+
+class CustomTitlebar {
+    constructor() {
+        this.isMaximized = false;
+        this.isDragging = false;
+        this.startX = 0;
+        this.startY = 0;
+        this.startLeft = 0;
+        this.startTop = 0;
+        
+        this.init();
+    }
+    
+    init() {
+        this.setupEventListeners();
+        this.updateWindowState();
+        this.startStatusMonitoring();
+        
+        // إضافة كلاس التحميل
+        document.querySelector('.custom-titlebar')?.classList.add('loading');
+        
+        setTimeout(() => {
+            document.querySelector('.custom-titlebar')?.classList.remove('loading');
+        }, 500);
+    }
+    
+    setupEventListeners() {
+        // أزرار النافذة
+        const minimizeBtn = document.getElementById('minimizeBtn');
+        const maximizeBtn = document.getElementById('maximizeBtn');
+        const closeBtn = document.querySelector('.close-btn');
+        
+        if (minimizeBtn) {
+            minimizeBtn.addEventListener('click', () => this.minimizeWindow());
+        }
+        
+        if (maximizeBtn) {
+            maximizeBtn.addEventListener('click', () => this.toggleMaximize());
+        }
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeWindow());
+        }
+        
+        // منطقة السحب
+        const dragRegion = document.querySelector('.titlebar-drag-region');
+        if (dragRegion) {
+            dragRegion.addEventListener('mousedown', (e) => this.startDrag(e));
+            dragRegion.addEventListener('dblclick', () => this.toggleMaximize());
+        }
+        
+        // تتبع تركيز النافذة
+        window.addEventListener('focus', () => this.updateFocusState(true));
+        window.addEventListener('blur', () => this.updateFocusState(false));
+        
+        // مراقبة تغيير حجم النافذة
+        window.addEventListener('resize', () => this.updateWindowState());
+        
+        // منع القائمة السياقية على الشريط
+        document.querySelector('.custom-titlebar')?.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+    }
+    
+    startDrag(e) {
+        if (this.isMaximized || !this.canDrag()) return;
+        
+        this.isDragging = true;
+        this.startX = e.clientX;
+        this.startY = e.clientY;
+        this.startLeft = window.screenX;
+        this.startTop = window.screenY;
+        
+        document.addEventListener('mousemove', this.drag.bind(this));
+        document.addEventListener('mouseup', this.stopDrag.bind(this));
+        
+        // منع التحديد أثناء السحب
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'move';
+    }
+    
+    drag(e) {
+        if (!this.isDragging) return;
+        
+        const deltaX = e.clientX - this.startX;
+        const deltaY = e.clientY - this.startY;
+        
+        if (window.electronAPI) {
+            // في بيئة Electron
+            window.electronAPI.moveWindow(
+                this.startLeft + deltaX,
+                this.startTop + deltaY
+            );
+        } else {
+            // في المتصفح (محدود)
+            if (window.moveTo) {
+                window.moveTo(
+                    this.startLeft + deltaX,
+                    this.startTop + deltaY
+                );
+            }
+        }
+    }
+    
+    stopDrag() {
+        this.isDragging = false;
+        document.removeEventListener('mousemove', this.drag);
+        document.removeEventListener('mouseup', this.stopDrag);
+        
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+    }
+    
+    canDrag() {
+        // التحقق من إمكانية السحب
+        return !document.fullscreenElement;
+    }
+    
+    minimizeWindow() {
+        if (window.electronAPI) {
+            window.electronAPI.minimize();
+        } else {
+            // في المتصفح
+            if (confirm('تصغير النافذة؟')) {
+                window.blur();
+            }
+        }
+        
+        this.showAction('minimize');
+    }
+    
+    toggleMaximize() {
+        if (window.electronAPI) {
+            window.electronAPI.toggleMaximize();
+        } else {
+            // في المتصفح
+            if (!this.isMaximized) {
+                this.maximizeWindow();
+            } else {
+                this.restoreWindow();
+            }
+        }
+        
+        this.showAction('maximize');
+    }
+    
+    maximizeWindow() {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+            this.isMaximized = true;
+        }
+        this.updateMaximizeIcon();
+    }
+    
+    restoreWindow() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+            this.isMaximized = false;
+        }
+        this.updateMaximizeIcon();
+    }
+    
+    closeWindow() {
+        if (window.electronAPI) {
+            window.electronAPI.close();
+        } else {
+            if (confirm('إغلاق التطبيق؟')) {
+                window.close();
+            }
+        }
+        
+        this.showAction('close');
+    }
+    
+    updateMaximizeIcon() {
+        const maximizeIcon = document.getElementById('maximizeIcon');
+        if (!maximizeIcon) return;
+        
+        if (this.isMaximized) {
+            // أيقونة الاستعادة
+            maximizeIcon.innerHTML = `
+                <rect x="2" y="4" width="6" height="6" stroke="currentColor" stroke-width="1" fill="none"/>
+                <rect x="4" y="2" width="6" height="6" stroke="currentColor" stroke-width="1" fill="none"/>
+            `;
+        } else {
+            // أيقونة التكبير
+            maximizeIcon.innerHTML = `
+                <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none"/>
+            `;
+        }
+        
+        document.querySelector('.custom-titlebar')?.classList.toggle('maximized', this.isMaximized);
+    }
+    
+    updateWindowState() {
+        // تحديث حالة النافذة
+        const titlebar = document.querySelector('.custom-titlebar');
+        if (!titlebar) return;
+        
+        if (window.electronAPI) {
+            // الحصول على حالة النافذة من Electron
+            window.electronAPI.getWindowState().then(state => {
+                this.isMaximized = state.isMaximized;
+                this.updateMaximizeIcon();
+            });
+        } else {
+            // في المتصفح
+            this.isMaximized = !!document.fullscreenElement;
+            this.updateMaximizeIcon();
+        }
+    }
+    
+    updateFocusState(focused) {
+        const titlebar = document.querySelector('.custom-titlebar');
+        if (!titlebar) return;
+        
+        document.body.classList.toggle('window-focused', focused);
+        document.body.classList.toggle('window-unfocused', !focused);
+        titlebar.classList.toggle('focused', focused);
+        titlebar.classList.toggle('unfocused', !focused);
+    }
+    
+    startStatusMonitoring() {
+        // مراقبة حالة التطبيق
+        setInterval(() => {
+            this.updateAppStatus();
+        }, 5000);
+    }
+    
+    updateAppStatus() {
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        
+        if (!statusIndicator || !statusText) return;
+        
+        // فحص حالة الاتصال
+        const isOnline = navigator.onLine;
+        const hasData = localStorage.getItem('products') !== null;
+        
+        if (isOnline && hasData) {
+            statusIndicator.style.background = '#2ecc71';
+            statusText.textContent = 'نشط';
+        } else if (!isOnline) {
+            statusIndicator.style.background = '#f39c12';
+            statusText.textContent = 'غير متصل';
+        } else {
+            statusIndicator.style.background = '#e74c3c';
+            statusText.textContent = 'خطأ';
+        }
+    }
+    
+    showAction(action) {
+        // إظهار تأثير مرئي للإجراء
+        const titlebar = document.querySelector('.custom-titlebar');
+        if (!titlebar) return;
+        
+        titlebar.classList.add(`action-${action}`);
+        
+        setTimeout(() => {
+            titlebar.classList.remove(`action-${action}`);
+        }, 300);
+    }
+    
+    // تخصيص مظهر الشريط
+    setTheme(theme = 'default') {
+        const titlebar = document.querySelector('.custom-titlebar');
+        if (!titlebar) return;
+        
+        // إزالة جميع فئات الثيمات
+        titlebar.classList.remove('theme-dark', 'theme-light', 'theme-colored');
+        
+        switch (theme) {
+            case 'dark':
+                titlebar.classList.add('theme-dark');
+                titlebar.style.background = 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)';
+                break;
+                
+            case 'light':
+                titlebar.classList.add('theme-light');
+                titlebar.style.background = 'linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%)';
+                titlebar.style.color = '#2c3e50';
+                break;
+                
+            case 'colored':
+                titlebar.classList.add('theme-colored');
+                titlebar.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                break;
+                
+            default:
+                titlebar.style.background = '';
+                titlebar.style.color = '';
+        }
+    }
+    
+    // إضافة تنبيه في الشريط
+    showTitlebarNotification(message, type = 'info', duration = 3000) {
+        const titlebar = document.querySelector('.titlebar-left');
+        if (!titlebar) return;
+        
+        const notification = document.createElement('div');
+        notification.className = `titlebar-notification ${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: absolute;
+            top: 45px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 10001;
+            animation: slideDown 0.3s ease;
+        `;
+        
+        if (type === 'error') {
+            notification.style.background = 'rgba(231, 76, 60, 0.9)';
+        } else if (type === 'success') {
+            notification.style.background = 'rgba(46, 204, 113, 0.9)';
+        } else if (type === 'warning') {
+            notification.style.background = 'rgba(243, 156, 18, 0.9)';
+        }
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideUp 0.3s ease';
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, duration);
+    }
+    
+    // تحديث معلومات التطبيق
+    updateAppInfo(info) {
+        const appTitle = document.querySelector('.app-title');
+        const appIcon = document.querySelector('.app-icon');
+        
+        if (info.title && appTitle) {
+            appTitle.textContent = info.title;
+        }
+        
+        if (info.icon && appIcon) {
+            appIcon.textContent = info.icon;
+        }
+    }
+}
+
+// ===============================================
+// مدير إعدادات الساعة الرقمية
+// ===============================================
+
+class ClockSettingsManager {
+    constructor() {
+        this.settings = this.loadSettings();
+        this.init();
+    }
+    
+    init() {
+        this.applySettings();
+        this.setupEventListeners();
+    }
+    
+    loadSettings() {
+        const defaultSettings = {
+            textColor: '#ffffff',
+            bgColor: '#667eea',
+            borderColor: '#764ba2',
+            fontSize: 16,
+            timeFormat: '12',
+            showSeconds: true,
+            showDate: true,
+            showGlow: false,
+            showBlink: false,
+            style: 'modern'
+        };
+        
+        const saved = localStorage.getItem('clockSettings');
+        return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+    }
+    
+    saveSettings() {
+        localStorage.setItem('clockSettings', JSON.stringify(this.settings));
+    }
+    
+    applySettings() {
+        const clock = document.querySelector('.digital-clock');
+        if (!clock) return;
+        
+        // تطبيق الألوان والأنماط
+        clock.style.color = this.settings.textColor;
+        clock.style.background = this.settings.bgColor;
+        clock.style.borderColor = this.settings.borderColor;
+        clock.style.fontSize = this.settings.fontSize + 'px';
+        
+        // تطبيق الكلاسات
+        clock.className = 'digital-clock';
+        clock.classList.add(this.settings.style);
+        
+        if (this.settings.showGlow) clock.classList.add('glow');
+        if (this.settings.showBlink) clock.classList.add('blink');
+        
+        // تحديث عرض الوقت
+        this.updateTimeDisplay();
+    }
+    
+    updateTimeDisplay() {
+        const timeDisplay = document.getElementById('timeDisplay');
+        const amPmDisplay = document.getElementById('amPmDisplay');
+        const dateDisplay = document.getElementById('dateDisplay');
+        
+        if (!timeDisplay) return;
+        
+        const now = new Date();
+        let hours = now.getHours();
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');
+        
+        let timeString = '';
+        let ampm = '';
+        
+        if (this.settings.timeFormat === '12') {
+            ampm = hours >= 12 ? 'م' : 'ص';
+            if (hours > 12) hours -= 12;
+            if (hours === 0) hours = 12;
+        }
+        
+        timeString = `${hours.toString().padStart(2, '0')}:${minutes}`;
+        if (this.settings.showSeconds) {
+            timeString += `:${seconds}`;
+        }
+        
+        timeDisplay.textContent = timeString;
+        
+        if (amPmDisplay) {
+            amPmDisplay.textContent = ampm;
+            amPmDisplay.style.display = this.settings.timeFormat === '12' ? 'block' : 'none';
+        }
+        
+        if (dateDisplay) {
+            dateDisplay.style.display = this.settings.showDate ? 'block' : 'none';
+        }
+    }
+    
+    setupEventListeners() {
+        // تحديث الساعة كل ثانية
+        setInterval(() => {
+            this.updateTimeDisplay();
+        }, 1000);
+    }
+    
+    updateSetting(key, value) {
+        this.settings[key] = value;
+        this.saveSettings();
+        this.applySettings();
+    }
+}
+
+// ===============================================
+// تأثيرات إضافية للشريط العلوي
+// ===============================================
+
+class TitlebarEffects {
+    static addRippleEffect(element, event) {
+        const ripple = document.createElement('span');
+        ripple.classList.add('ripple');
+        
+        const rect = element.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        const x = event.clientX - rect.left - size / 2;
+        const y = event.clientY - rect.top - size / 2;
+        
+        ripple.style.cssText = `
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0);
+            animation: ripple-animation 0.6s linear;
+            left: ${x}px;
+            top: ${y}px;
+            width: ${size}px;
+            height: ${size}px;
+            pointer-events: none;
+        `;
+        
+        element.style.position = 'relative';
+        element.style.overflow = 'hidden';
+        element.appendChild(ripple);
+        
+        setTimeout(() => {
+            ripple.remove();
+        }, 600);
+    }
+    
+    static showWindowAnimation(type) {
+        const titlebar = document.querySelector('.custom-titlebar');
+        if (!titlebar) return;
+        
+        titlebar.style.animation = `window-${type} 0.3s ease`;
+        
+        setTimeout(() => {
+            titlebar.style.animation = '';
+        }, 300);
+    }
+}
+
+// ===============================================
+// تهيئة النظام
+// ===============================================
+
+// إنشاء مثيلات عند تحميل الصفحة
+let customTitlebar;
+let clockSettingsManager;
+
+document.addEventListener('DOMContentLoaded', function() {
+    customTitlebar = new CustomTitlebar();
+    clockSettingsManager = new ClockSettingsManager();
+    
+    // إضافة أنماط CSS إضافية
+    const additionalStyles = document.createElement('style');
+    additionalStyles.textContent = `
+        @keyframes ripple-animation {
+            to { transform: scale(4); opacity: 0; }
+        }
+        
+        @keyframes window-minimize {
+            to { transform: scale(0.8); opacity: 0; }
+        }
+        
+        @keyframes window-maximize {
+            from { transform: scale(0.9); }
+            to { transform: scale(1); }
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-20px); opacity: 0; }
+        }
+        
+        .custom-titlebar.action-minimize {
+            animation: window-minimize 0.3s ease;
+        }
+        
+        .custom-titlebar.action-maximize {
+            animation: window-maximize 0.3s ease;
+        }
+        
+        .custom-titlebar.action-close {
+            animation: window-minimize 0.3s ease;
+        }
+    `;
+    
+    document.head.appendChild(additionalStyles);
+    
+    // إضافة تأثير الضغط للأزرار
+    document.querySelectorAll('.titlebar-btn').forEach(btn => {
+        btn.addEventListener('mousedown', function(e) {
+            TitlebarEffects.addRippleEffect(this, e);
+        });
+    });
+    
+    console.log('Custom Titlebar initialized successfully! 🎯');
+});
+
+// تصدير الكلاسات للاستخدام العام
+window.CustomTitlebar = CustomTitlebar;
+window.ClockSettingsManager = ClockSettingsManager;
+window.TitlebarEffects = TitlebarEffects;
