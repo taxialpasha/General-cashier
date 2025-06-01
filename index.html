@@ -12,149 +12,35 @@
 </head>
 
 <body>
-
-    <!-- أضف هذا الكود في بداية body في index.html، قبل div class="header" -->
-
-<!-- شريط العنوان المخصص -->
-<div class="custom-titlebar" id="customTitlebar">
-    <!-- منطقة السحب -->
-    <div class="titlebar-drag-region"></div>
-    
-    <!-- جانب اليسار - معلومات التطبيق -->
-    <div class="titlebar-left">
-        <div class="app-icon">🏪</div>
-        <div class="app-title">نظام الكاشير المتكامل</div>
-        <div class="app-status" id="appStatus">
-            <span class="status-indicator" id="statusIndicator"></span>
-            <span class="status-text" id="statusText">نشط</span>
-        </div>
-    </div>
-    
-    <!-- الوسط - الساعة الرقمية -->
-    <div class="titlebar-center">
-        <div class="digital-clock" id="digitalClock">
-            <div class="clock-display">
-                <div class="time-section">
-                    <span class="time-digits" id="timeDisplay">00:00:00</span>
-                    <span class="am-pm" id="amPmDisplay">ص</span>
-                </div>
-                <div class="date-section">
-                    <span class="date-text" id="dateDisplay">الأحد، 1 ديسمبر 2024</span>
-                </div>
-            </div>
-            <div class="clock-settings-btn" onclick="showClockSettings()" title="إعدادات الساعة">
-                ⚙️
-            </div>
-        </div>
-    </div>
-    
-    <!-- جانب اليمين - أزرار النافذة -->
-    <div class="titlebar-right">
-        <button class="titlebar-btn" id="minimizeBtn" onclick="minimizeWindow()" title="تصغير">
-            <svg width="12" height="12" viewBox="0 0 12 12">
-                <rect x="2" y="5" width="8" height="2" fill="currentColor"/>
-            </svg>
-        </button>
-        <button class="titlebar-btn" id="maximizeBtn" onclick="toggleMaximize()" title="تكبير/استعادة">
-            <svg width="12" height="12" viewBox="0 0 12 12" id="maximizeIcon">
-                <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none"/>
-            </svg>
-        </button>
-        <button class="titlebar-btn close-btn" onclick="closeWindow()" title="إغلاق">
-            <svg width="12" height="12" viewBox="0 0 12 12">
-                <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-        </button>
+<div class="titlebar-left">
+    <div class="app-icon">🏪</div>
+    <div class="app-title">نظام الكاشير المتكامل</div>
+    <div class="app-status">
+        <span class="status-indicator"></span>
+        <span class="status-text">نشط</span>
     </div>
 </div>
 
-<!-- نافذة إعدادات الساعة -->
-<div id="clockSettingsModal" class="modal">
-    <div class="modal-content clock-settings">
-        <span class="close" onclick="closeModal('clockSettingsModal')">&times;</span>
-        <h2>⚙️ إعدادات الساعة</h2>
-        
-        <div class="clock-settings-grid">
-            <div class="setting-group">
-                <h3>🎨 الألوان</h3>
-                <div class="color-settings">
-                    <div class="color-option">
-                        <label>لون الأرقام:</label>
-                        <input type="color" id="clockTextColor" value="#ffffff" onchange="updateClockSettings()">
-                    </div>
-                    <div class="color-option">
-                        <label>لون الخلفية:</label>
-                        <input type="color" id="clockBgColor" value="#667eea" onchange="updateClockSettings()">
-                    </div>
-                    <div class="color-option">
-                        <label>لون الحدود:</label>
-                        <input type="color" id="clockBorderColor" value="#764ba2" onchange="updateClockSettings()">
-                    </div>
-                </div>
+<div class="titlebar-center">
+    <div class="digital-clock">
+        <div class="clock-display">
+            <div class="time-section">
+                <span class="time-digits">00:00:00</span>
+                <span class="am-pm">ص</span>
             </div>
-            
-            <div class="setting-group">
-                <h3>⏰ العرض</h3>
-                <div class="display-settings">
-                    <div class="setting-option">
-                        <label>
-                            <input type="radio" name="timeFormat" value="12" onchange="updateClockSettings()" checked>
-                            12 ساعة (مع ص/م)
-                        </label>
-                    </div>
-                    <div class="setting-option">
-                        <label>
-                            <input type="radio" name="timeFormat" value="24" onchange="updateClockSettings()">
-                            24 ساعة
-                        </label>
-                    </div>
-                    <div class="setting-option">
-                        <label>
-                            <input type="checkbox" id="showSeconds" onchange="updateClockSettings()" checked>
-                            عرض الثواني
-                        </label>
-                    </div>
-                    <div class="setting-option">
-                        <label>
-                            <input type="checkbox" id="showDate" onchange="updateClockSettings()" checked>
-                            عرض التاريخ
-                        </label>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="setting-group">
-                <h3>💫 التأثيرات</h3>
-                <div class="effect-settings">
-                    <div class="setting-option">
-                        <label>حجم الخط:</label>
-                        <input type="range" id="clockFontSize" min="12" max="24" value="16" onchange="updateClockSettings()">
-                        <span id="fontSizeValue">16px</span>
-                    </div>
-                    <div class="setting-option">
-                        <label>
-                            <input type="checkbox" id="clockGlow" onchange="updateClockSettings()">
-                            تأثير الإضاءة
-                        </label>
-                    </div>
-                    <div class="setting-option">
-                        <label>
-                            <input type="checkbox" id="clockBlink" onchange="updateClockSettings()">
-                            وميض النقطتين
-                        </label>
-                    </div>
-                    <div class="setting-option">
-                        <label>نمط الساعة:</label>
-                        <select id="clockStyle" onchange="updateClockSettings()">
-                            <option value="modern">عصري</option>
-                            <option value="classic">كلاسيكي</option>
-                            <option value="minimal">بسيط</option>
-                            <option value="neon">نيون</option>
-                        </select>
-                    </div>
-                </div>
+            <div class="date-section">
+                <span class="date-text">الأحد، 1 ديسمبر 2024</span>
             </div>
         </div>
+        <div class="clock-settings-btn">⚙️</div>
+    </div>
+</div>
+
+<div class="titlebar-right">
+    <button class="titlebar-btn" id="minimizeBtn">تصغير</button>
+    <button class="titlebar-btn" id="maximizeBtn">تكبير</button>
+    <button class="titlebar-btn close-btn">إغلاق</button>
+</div>
         
         <div class="settings-actions">
             <button class="btn btn-primary" onclick="resetClockSettings()">إعادة تعيين</button>
